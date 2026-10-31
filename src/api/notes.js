@@ -1,5 +1,6 @@
 // 노트 API 클라이언트. 주소는 항상 상대 경로(/api/...)로 호출한다.
-export const EMPTY_CONTENT = '{"version":1,"pages":[{"strokes":[]}]}'
+// 새 노트의 빈 필기 데이터 (형식은 src/note/content.js)
+export { EMPTY_CONTENT } from '../note/content'
 
 const BASE = '/api/notes'
 
