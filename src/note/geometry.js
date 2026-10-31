@@ -34,3 +34,21 @@ export function clientToPage(clientX, clientY, rect) {
   const scale = PAGE_WIDTH / rect.width
   return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale }
 }
+
+function distToSegment(px, py, [x0, y0], [x1, y1]) {
+  const vx = x1 - x0
+  const vy = y1 - y0
+  const len2 = vx * vx + vy * vy
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - x0) * vx + (py - y0) * vy) / len2))
+  return Math.hypot(px - (x0 + t * vx), py - (y0 + t * vy))
+}
+
+/** 지우개: 점 (x, y)가 획(변환 적용 위치)에서 radius 이내인지 */
+export function hitStroke(stroke, { x, y }, radius) {
+  const pts = strokePoints(stroke)
+  if (pts.length === 1) return Math.hypot(x - pts[0][0], y - pts[0][1]) <= radius
+  for (let i = 1; i < pts.length; i++) {
+    if (distToSegment(x, y, pts[i - 1], pts[i]) <= radius) return true
+  }
+  return false
+}

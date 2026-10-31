@@ -35,3 +35,24 @@ describe('geometry', () => {
     expect(clientToPage(150, 100, { left: 100, top: 50, width: 500, height: 707 })).toEqual({ x: 100, y: 100 })
   })
 })
+
+describe('hitStroke', () => {
+  it('hits a point near a segment, not only near its end points', async () => {
+    const { hitStroke } = await import('./geometry')
+    const s = stroke([[0, 0, 0.5, 0], [100, 0, 0.5, 8]])
+    expect(hitStroke(s, { x: 50, y: 6 }, 10)).toBe(true)
+    expect(hitStroke(s, { x: 50, y: 20 }, 10)).toBe(false)
+  })
+
+  it('uses the transformed position', async () => {
+    const { hitStroke } = await import('./geometry')
+    const s = stroke([[0, 0, 0.5, 0], [100, 0, 0.5, 8]], { dx: 0, dy: 200, rotate: 0, ox: 0, oy: 0 })
+    expect(hitStroke(s, { x: 50, y: 200 }, 10)).toBe(true)
+    expect(hitStroke(s, { x: 50, y: 0 }, 10)).toBe(false)
+  })
+
+  it('hits a single-point stroke', async () => {
+    const { hitStroke } = await import('./geometry')
+    expect(hitStroke(stroke([[10, 10, 0.5, 0]]), { x: 14, y: 13 }, 10)).toBe(true)
+  })
+})
