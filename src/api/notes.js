@@ -4,7 +4,7 @@ export { EMPTY_CONTENT } from '../note/content'
 
 const BASE = '/api/notes'
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const res = await fetch(path, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
