@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { createNote, deleteNote, EMPTY_CONTENT, listNotes } from './api/notes'
+import NoteEditor from './components/NoteEditor'
 import './App.css'
 
-// 1주차 확인용 화면: 백엔드와 연결되는지만 본다. 필기 캔버스 작업에서 교체한다.
 function App() {
   const [notes, setNotes] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [openId, setOpenId] = useState(null)
 
   async function refresh() {
     try {
@@ -25,14 +26,15 @@ function App() {
 
   async function handleCreate() {
     try {
-      await createNote({ title: '새 노트', content: EMPTY_CONTENT })
-      await refresh()
+      const note = await createNote({ title: '새 노트', content: EMPTY_CONTENT })
+      setOpenId(note.id)
     } catch (e) {
       setError(e.message)
     }
   }
 
   async function handleDelete(id) {
+    if (!window.confirm('이 노트를 삭제할까요?')) return
     try {
       await deleteNote(id)
       await refresh()
@@ -41,21 +43,37 @@ function App() {
     }
   }
 
+  if (openId !== null) {
+    return (
+      <NoteEditor
+        noteId={openId}
+        onBack={() => {
+          setOpenId(null)
+          refresh()
+        }}
+      />
+    )
+  }
+
   return (
-    <main className="app">
-      <h1>또박</h1>
+    <main className="note-list">
+      <header className="note-list-header">
+        <h1>또박</h1>
+        <button type="button" className="primary" onClick={handleCreate}>새 노트</button>
+      </header>
       {error && <p className="error">{error}</p>}
-      <button type="button" onClick={handleCreate}>새 노트</button>
       {loading ? (
         <p>불러오는 중...</p>
       ) : notes.length === 0 ? (
-        <p>노트가 없습니다.</p>
+        <p className="empty">노트가 없습니다. "새 노트"로 시작해 보세요.</p>
       ) : (
-        <ul className="notes">
+        <ul>
           {notes.map((note) => (
             <li key={note.id}>
-              <span>{note.title}</span>
-              <small>{new Date(note.updatedAt).toLocaleString('ko-KR')}</small>
+              <button type="button" className="note-open" onClick={() => setOpenId(note.id)}>
+                <span className="note-title">{note.title}</span>
+                <small>{new Date(note.updatedAt).toLocaleString('ko-KR')}</small>
+              </button>
               <button type="button" onClick={() => handleDelete(note.id)}>삭제</button>
             </li>
           ))}

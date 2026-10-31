@@ -1,27 +1,63 @@
-.app {
-  max-width: 640px;
+.note-list {
+  max-width: 720px;
   margin: 0 auto;
-  padding: 32px 16px;
-  text-align: left;
+  padding: 24px 16px;
+  padding-top: max(24px, env(safe-area-inset-top));
 }
 
-.error {
-  color: #c62828;
-}
-
-.notes {
-  list-style: none;
-  padding: 0;
-}
-
-.notes li {
+.note-list-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #ddd;
+  justify-content: space-between;
 }
 
-.notes li span {
+.note-list h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.note-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.note-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eef0f2;
+}
+
+.note-list li:last-child {
+  border-bottom: none;
+}
+
+.note-open {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 4px;
+}
+
+.note-title {
+  font-weight: 600;
+}
+
+.note-open small {
+  color: #6e7781;
+}
+
+.empty {
+  color: #6e7781;
 }
