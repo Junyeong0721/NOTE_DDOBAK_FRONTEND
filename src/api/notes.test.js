@@ -36,3 +36,31 @@ describe('notes api', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/notes/3', expect.objectContaining({ method: 'DELETE' }))
   })
 })
+
+describe('notes api: folders and thumbnails', () => {
+  const ok = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+
+  it('createNote sends folderId only when given', async () => {
+    const { createNote } = await import('./notes')
+    const f = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(ok({ id: 1 })))
+    await createNote({ title: 't', content: '{}', folderId: 3 })
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ title: 't', content: '{}', folderId: 3 })
+    await createNote({ title: 't', content: '{}' })
+    expect('folderId' in JSON.parse(f.mock.calls[1][1].body)).toBe(false)
+  })
+
+  it('updateNote sends the thumbnail', async () => {
+    const { updateNote } = await import('./notes')
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ id: 1 }))
+    await updateNote(1, { title: 't', content: '{}', thumbnail: 'data:image/png;base64,AAA' })
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ title: 't', content: '{}', thumbnail: 'data:image/png;base64,AAA' })
+  })
+
+  it('moveNoteToFolder patches the folder, null means unfiled', async () => {
+    const { moveNoteToFolder } = await import('./notes')
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok({ id: 1, folderId: null }))
+    await moveNoteToFolder(1, null)
+    expect(f).toHaveBeenCalledWith('/api/notes/1/folder', expect.objectContaining({ method: 'PATCH' }))
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ folderId: null })
+  })
+})
