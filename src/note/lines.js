@@ -28,6 +28,13 @@ function verticalRelation(a, b) {
   return { overlapRatio: overlap / minH, gap: -overlap }
 }
 
+// 올가미로 직접 지정한 종류가 있으면 그걸 따른다
+function isBig(stroke, b) {
+  if (stroke.kind === 'drawing') return true
+  if (stroke.kind === 'text') return false
+  return isBigStroke(b)
+}
+
 function isBigStroke(b, ref = DEFAULT_TEXT_HEIGHT) {
   const h = height(b)
   const w = width(b)
@@ -47,7 +54,7 @@ const intersects = (a, b, pad = 0) =>
 /** 획이 이 (글씨) 줄에 이어지는지 */
 export function joinsGroup(stroke, group) {
   const b = rawBBox(stroke)
-  return !isBigStroke(b) && canJoinText(b, group.bbox)
+  return !isBig(stroke, b) && canJoinText(b, group.bbox)
 }
 
 function median(values) {
@@ -65,7 +72,7 @@ export function groupLines(strokes) {
   for (const stroke of ordered) {
     const b = rawBBox(stroke)
 
-    if (isBigStroke(b)) {
+    if (isBig(stroke, b)) {
       const drawing = groups.find((g) => g.big && intersects(b, g.bbox))
       if (drawing) {
         drawing.strokeIds.push(stroke.id)
@@ -99,6 +106,7 @@ export function groupLines(strokes) {
       groups.push({ id: stroke.id, big: false, strokeIds: [stroke.id], bbox: b })
     }
   }
+  const forcedText = new Set(ordered.filter((s) => s.kind === 'text').map((s) => s.id))
 
   const textHeights = groups.filter((g) => !g.big && height(g.bbox) <= 3 * DEFAULT_TEXT_HEIGHT).map((g) => height(g.bbox))
   const ref = textHeights.length ? median(textHeights) : DEFAULT_TEXT_HEIGHT
@@ -106,7 +114,7 @@ export function groupLines(strokes) {
   return groups
     .map((g) => ({
       id: g.id,
-      kind: g.big || height(g.bbox) > DRAWING_HEIGHT_RATIO * ref ? 'drawing' : 'text',
+      kind: g.big || (height(g.bbox) > DRAWING_HEIGHT_RATIO * ref && !g.strokeIds.some((id) => forcedText.has(id))) ? 'drawing' : 'text',
       strokeIds: g.strokeIds,
       bbox: g.bbox,
     }))
