@@ -1,0 +1,2 @@
+# Windows 배치 파일: 저장소에는 UTF-8로, Windows에서 받으면 한글이 깨지지 않게 CP949 + CRLF로
+*.bat text eol=crlf working-tree-encoding=CP949
