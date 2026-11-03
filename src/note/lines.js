@@ -2,6 +2,7 @@
 // 원본 좌표(rawBBox)로 계산하므로 노트 정리(transform)를 해도 묶음이 바뀌지 않는다.
 // 기준값은 실제 필기로 조정한다(기획서 6-1 "AI 기능 설계").
 import { rawBBox } from './geometry'
+import { isHighlighter } from './tools'
 
 export const LINE_IDLE_MS = 2500 // 펜을 이만큼 떼고 있으면 줄이 끝난 것으로 본다
 export const DEFAULT_TEXT_HEIGHT = 40 // 페이지 좌표(가로 1000) 기준 보통 글자 높이
@@ -58,7 +59,8 @@ function median(values) {
 /** @returns {{id: string, kind: 'text'|'drawing', strokeIds: string[], bbox: object}[]} 위→아래 순 */
 export function groupLines(strokes) {
   const groups = []
-  const ordered = [...strokes].filter((s) => s.points.length > 0).sort((a, b) => a.t0 - b.t0)
+  // 형광펜은 글씨에 덧칠한 표시라 줄 묶기·판정에서 뺀다
+  const ordered = [...strokes].filter((s) => s.points.length > 0 && !isHighlighter(s)).sort((a, b) => a.t0 - b.t0)
 
   for (const stroke of ordered) {
     const b = rawBBox(stroke)

@@ -99,3 +99,12 @@ describe('isLineEnd', () => {
     expect(isLineEnd({ line, nextStroke: fakeStroke('n', 9, 250, 100, 290, 140), idleMs: 300 })).toBe(false)
   })
 })
+
+describe('groupLines with highlighter', () => {
+  it('highlighter strokes are not grouped into lines', () => {
+    const hl = { ...fakeStroke('hl', 5, 90, 110, 260, 130), tool: 'highlighter' }
+    const lines = groupLines([...textLine('a', 0, 100, 100, 3), hl])
+    expect(lines).toHaveLength(1)
+    expect(lines[0].strokeIds).toEqual(['a0', 'a1', 'a2'])
+  })
+})

@@ -1,6 +1,7 @@
 // 페이지를 캔버스에 그린다. 좌표는 페이지 단위이고 scale(= 화면 너비 / 1000)을 곱해 그린다.
 import { PAGE_HEIGHT, PAGE_WIDTH } from './content'
 import { strokeBBox, strokePoints } from './geometry'
+import { HIGHLIGHTER_ALPHA, isHighlighter } from './tools'
 
 export const GUIDE_SPACING = 50
 const GUIDE_COLOR = '#e3e7ee'
@@ -10,9 +11,35 @@ const DRAWING_COLOR = '#d32f2f'
 /** 필압 0.5에서 기본 굵기, 세게 누를수록 굵게 */
 export const strokeLineWidth = (width, pressure, scale) => width * (0.4 + 1.2 * pressure) * scale
 
+// 형광펜: 한 경로로 한 번에 그려야 겹치는 구간이 진해지지 않는다. 필압과 상관없이 고정 굵기.
+function drawHighlighter(ctx, pts, stroke, scale) {
+  ctx.save()
+  ctx.globalAlpha = HIGHLIGHTER_ALPHA
+  ctx.strokeStyle = stroke.color
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = stroke.width * scale
+  ctx.beginPath()
+  ctx.moveTo(pts[0][0] * scale, pts[0][1] * scale)
+  if (pts.length === 1) ctx.lineTo(pts[0][0] * scale + 0.01, pts[0][1] * scale)
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1]
+    const [x1, y1] = pts[i]
+    ctx.quadraticCurveTo(x0 * scale, y0 * scale, ((x0 + x1) / 2) * scale, ((y0 + y1) / 2) * scale)
+  }
+  const last = pts[pts.length - 1]
+  ctx.lineTo(last[0] * scale, last[1] * scale)
+  ctx.stroke()
+  ctx.restore()
+}
+
 export function drawStroke(ctx, stroke, scale) {
   const pts = strokePoints(stroke)
   if (pts.length === 0) return
+  if (isHighlighter(stroke)) {
+    drawHighlighter(ctx, pts, stroke, scale)
+    return
+  }
   ctx.strokeStyle = stroke.color
   ctx.fillStyle = stroke.color
   ctx.lineCap = 'round'
@@ -83,9 +110,12 @@ export function drawPage(ctx, { strokes, scale, showGuides = false, lines = [], 
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   if (showGuides) drawGuides(ctx, scale)
-  for (const s of strokes) {
-    if (!hiddenIds || !hiddenIds.has(s.id)) drawStroke(ctx, s, scale)
-  }
-  if (activeStroke) drawStroke(ctx, activeStroke, scale)
+  const visible = strokes.filter((s) => !hiddenIds || !hiddenIds.has(s.id))
+  // 형광펜을 먼저(아래), 펜을 나중에(위) 그린다
+  const activeIsHighlighter = activeStroke && isHighlighter(activeStroke)
+  for (const s of visible) if (isHighlighter(s)) drawStroke(ctx, s, scale)
+  if (activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
+  for (const s of visible) if (!isHighlighter(s)) drawStroke(ctx, s, scale)
+  if (activeStroke && !activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
 }
