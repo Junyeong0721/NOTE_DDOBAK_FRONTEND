@@ -1,8 +1,33 @@
+/* 또박 디자인 토큰: 흰 종이 + 남색 볼펜 잉크, 색은 과목(폴더)과 형광펜에만 쓴다 */
 :root {
-  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Segoe UI', 'Malgun Gothic', sans-serif;
-  color: #1f2328;
-  background: #f4f5f7;
+  --bg: #f3f6fb;
+  --paper: #ffffff;
+  --ink: #1f2a44;
+  --ink-2: #5b6478;
+  --ink-3: #8a93a6;
+  --line: #dfe4ee;
+  --line-strong: #c4ccdb;
+  --focus: #2563eb;
+  --danger: #d93a3f;
+
+  --yellow: #ffd84d;
+  --pink: #ff7aa8;
+  --mint: #3ccfa8;
+  --sky: #4da8ff;
+  --orange: #ff9f43;
+  --lavender: #9b8cff;
+
+  --r-btn: 10px;
+  --r-thumb: 6px;
+  --r-sheet: 16px;
+
+  font-family: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -22,28 +47,97 @@ body {
   overscroll-behavior: none;
 }
 
-button {
+button,
+input {
   font: inherit;
-  padding: 6px 12px;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  background: #fff;
   color: inherit;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn);
+  background: var(--paper);
   cursor: pointer;
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
-button.active,
-button.primary {
-  background: #1f2328;
-  border-color: #1f2328;
-  color: #fff;
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 주요 버튼 = 노란 형광펜 */
+.btn-primary {
+  background: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 70%, var(--ink));
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--yellow) 88%, var(--ink));
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-danger {
+  color: var(--danger);
 }
 
 .error {
-  color: #c62828;
+  color: var(--danger);
+}
+
+/* 로고: 나눔펜 손글씨 + 노란 형광펜 한 줄 */
+.logo {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  font-family: 'Nanum Pen Script', 'IBM Plex Sans KR', cursive;
+  font-weight: 400;
+  color: var(--ink);
+  line-height: 1;
+  isolation: isolate;
+}
+
+.logo::after {
+  content: '';
+  position: absolute;
+  left: -6%;
+  right: -10%;
+  bottom: 8%;
+  height: 42%;
+  background: var(--yellow);
+  border-radius: 3px 8px 4px 10px;
+  transform: rotate(-2.5deg);
+  opacity: 0.85;
+  z-index: -1;
+}
+
+.logo-large {
+  font-size: 44px;
+}
+
+.logo-small {
+  font-size: 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
