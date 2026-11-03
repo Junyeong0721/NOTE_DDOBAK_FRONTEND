@@ -87,3 +87,20 @@ describe('render highlighter', () => {
     expect(ctx.calls.filter(([k]) => k === 'stroke').length).toBe(1)
   })
 })
+
+describe('render selection', () => {
+  it('draws a dashed box around the selection', () => {
+    const ctx = fakeCtx()
+    drawPage(ctx, { strokes: [], scale: 2, selectionBox: { minX: 10, minY: 20, maxX: 110, maxY: 70 } })
+    expect(ctx.calls.some(([k]) => k === 'setLineDash')).toBe(true)
+    const rect = ctx.calls.find(([k]) => k === 'strokeRect')
+    expect(rect.slice(1)).toEqual([(10 - 8) * 2, (20 - 8) * 2, (100 + 16) * 2, (50 + 16) * 2])
+  })
+
+  it('draws the lasso path while selecting', () => {
+    const ctx = fakeCtx()
+    drawPage(ctx, { strokes: [], scale: 1, lassoPath: [[0, 0], [50, 0], [50, 50]] })
+    expect(ctx.calls.filter(([k]) => k === 'lineTo').length).toBeGreaterThanOrEqual(2)
+    expect(ctx.calls.some(([k]) => k === 'setLineDash')).toBe(true)
+  })
+})

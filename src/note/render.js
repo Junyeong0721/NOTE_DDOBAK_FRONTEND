@@ -104,8 +104,42 @@ function drawLineBoxes(ctx, strokes, lines, lineLabels, scale) {
   }
 }
 
+const SELECTION_COLOR = '#2563eb'
+const SELECTION_PAD = 8
+
+function drawSelection(ctx, box, scale) {
+  ctx.save()
+  ctx.strokeStyle = SELECTION_COLOR
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([6, 4])
+  ctx.fillStyle = 'rgba(37, 99, 235, 0.06)'
+  const x = (box.minX - SELECTION_PAD) * scale
+  const y = (box.minY - SELECTION_PAD) * scale
+  const w = (box.maxX - box.minX + SELECTION_PAD * 2) * scale
+  const h = (box.maxY - box.minY + SELECTION_PAD * 2) * scale
+  ctx.fillRect(x, y, w, h)
+  ctx.strokeRect(x, y, w, h)
+  ctx.restore()
+}
+
+function drawLasso(ctx, path, scale) {
+  if (path.length < 2) return
+  ctx.save()
+  ctx.strokeStyle = SELECTION_COLOR
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([5, 5])
+  ctx.beginPath()
+  ctx.moveTo(path[0][0] * scale, path[0][1] * scale)
+  for (const [x, y] of path.slice(1)) ctx.lineTo(x * scale, y * scale)
+  ctx.stroke()
+  ctx.restore()
+}
+
 /** 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획 */
-export function drawPage(ctx, { strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {}, activeStroke = null, hiddenIds = null }) {
+export function drawPage(ctx, {
+  strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
+  activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
+}) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
@@ -118,4 +152,6 @@ export function drawPage(ctx, { strokes, scale, showGuides = false, lines = [], 
   for (const s of visible) if (!isHighlighter(s)) drawStroke(ctx, s, scale)
   if (activeStroke && !activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
+  if (selectionBox) drawSelection(ctx, selectionBox, scale)
+  if (lassoPath) drawLasso(ctx, lassoPath, scale)
 }
