@@ -2,6 +2,7 @@
 // 원본 points는 그대로 두고 획마다 transform만 새로 계산한다(매번 원본 기준 → 두 번 해도 같은 결과).
 import { applyTransform, rawBBox } from './geometry'
 import { DEFAULT_TEXT_HEIGHT, groupLines } from './lines'
+import { isHighlighter } from './tools'
 
 export const MAX_TIDY_ANGLE = (15 * Math.PI) / 180 // 이보다 많이 기울면 일부러 그렇게 쓴 것으로 보고 펴지 않는다
 export const LEFT_SNAP = 40 // 왼쪽 끝이 다른 줄들과 이만큼 이내로 차이 나면 맞춘다(들여쓰기는 유지)
@@ -102,6 +103,25 @@ export function tidyPage(strokes) {
     const identity = t.dx === 0 && t.dy === 0 && t.rotate === 0
     for (const s of p.lineStrokes) transforms.set(s.id, identity ? null : t)
   }
+
+  // 5) 형광펜은 가장 많이 겹치는 글씨 줄과 함께 움직인다
+  for (const s of strokes) {
+    if (!isHighlighter(s) || s.points.length === 0) continue
+    const b = rawBBox(s)
+    let best = null
+    let bestArea = 0
+    for (const p of plans) {
+      const lb = p.line.bbox
+      const w = Math.min(b.maxX, lb.maxX) - Math.max(b.minX, lb.minX)
+      const h = Math.min(b.maxY, lb.maxY) - Math.max(b.minY, lb.minY)
+      if (w > 0 && h > 0 && w * h > bestArea) {
+        best = p
+        bestArea = w * h
+      }
+    }
+    if (best) transforms.set(s.id, transforms.get(best.lineStrokes[0].id) ?? null)
+  }
+
   return strokes.map((s) => ({ ...s, transform: transforms.get(s.id) ?? null }))
 }
 

@@ -63,3 +63,44 @@ describe('render', () => {
     expect(ctx.calls.some(([k, v]) => k === 'set:strokeStyle' && v === '#d32f2f')).toBe(true)
   })
 })
+
+describe('render highlighter', () => {
+  it('draws highlighters before pens with alpha 0.35', () => {
+    const ctx = fakeCtx()
+    const pen = stroke([[10, 10, 0.5, 0], [20, 20, 0.5, 8]], { id: 'p', color: '#1f2a44' })
+    const hl = stroke([[0, 15, 0.5, 0], [40, 15, 0.5, 8]], { id: 'h', color: '#ffd84d', width: 18, tool: 'highlighter' })
+    drawPage(ctx, { strokes: [pen, hl], scale: 1 })
+    const idx = (pred) => ctx.calls.findIndex(pred)
+    const hlColor = idx(([k, v]) => k === 'set:strokeStyle' && v === '#ffd84d')
+    const penColor = idx(([k, v]) => k === 'set:strokeStyle' && v === '#1f2a44')
+    const alpha = idx(([k, v]) => k === 'set:globalAlpha' && v === 0.35)
+    expect(hlColor).toBeGreaterThan(-1)
+    expect(alpha).toBeGreaterThan(-1)
+    expect(alpha).toBeLessThan(penColor)
+    expect(hlColor).toBeLessThan(penColor)
+  })
+
+  it('draws a highlighter as one path so overlaps do not darken', () => {
+    const ctx = fakeCtx()
+    const hl = stroke([[0, 15, 0.5, 0], [20, 15, 0.5, 8], [40, 16, 0.5, 16], [60, 15, 0.5, 24]], { id: 'h', color: '#ffd84d', width: 18, tool: 'highlighter' })
+    drawPage(ctx, { strokes: [hl], scale: 1 })
+    expect(ctx.calls.filter(([k]) => k === 'stroke').length).toBe(1)
+  })
+})
+
+describe('render selection', () => {
+  it('draws a dashed box around the selection', () => {
+    const ctx = fakeCtx()
+    drawPage(ctx, { strokes: [], scale: 2, selectionBox: { minX: 10, minY: 20, maxX: 110, maxY: 70 } })
+    expect(ctx.calls.some(([k]) => k === 'setLineDash')).toBe(true)
+    const rect = ctx.calls.find(([k]) => k === 'strokeRect')
+    expect(rect.slice(1)).toEqual([(10 - 8) * 2, (20 - 8) * 2, (100 + 16) * 2, (50 + 16) * 2])
+  })
+
+  it('draws the lasso path while selecting', () => {
+    const ctx = fakeCtx()
+    drawPage(ctx, { strokes: [], scale: 1, lassoPath: [[0, 0], [50, 0], [50, 50]] })
+    expect(ctx.calls.filter(([k]) => k === 'lineTo').length).toBeGreaterThanOrEqual(2)
+    expect(ctx.calls.some(([k]) => k === 'setLineDash')).toBe(true)
+  })
+})

@@ -1,82 +1,181 @@
 .editor {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100dvh;
 }
 
-.editor-toolbar {
+/* ---------- 상단 바 ---------- */
+.editor-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  padding-top: max(8px, env(safe-area-inset-top));
-  background: #fff;
-  border-bottom: 1px solid #e1e4e8;
+  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.back {
+  position: relative;
+  gap: 6px;
+  padding: 6px 10px 6px 4px;
+  max-width: 200px;
+  color: var(--ink-2);
+}
+
+/* 지금 노트가 속한 과목의 인덱스 탭 */
+.back-tab {
+  width: 6px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--tab);
+  flex-shrink: 0;
+}
+
+.back-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-title {
-  flex: 1 1 160px;
-  min-width: 120px;
-  font: inherit;
-  font-weight: 600;
+  flex: 1;
+  min-width: 80px;
   padding: 6px 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-btn);
   background: transparent;
+  font-size: 17px;
+  font-weight: 600;
 }
 
+.editor-title:hover,
 .editor-title:focus {
-  border-color: #d0d7de;
+  border-color: var(--line);
   outline: none;
 }
 
-.tool-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.color-swatch {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #d0d7de;
-}
-
-.color-swatch.selected {
-  box-shadow: 0 0 0 2px #1f2328;
-}
-
 .save-state {
-  margin-left: auto;
+  color: var(--ink-3);
   font-size: 13px;
-  color: #57606a;
+  white-space: nowrap;
 }
 
 .save-state.error,
 .save-state.invalid {
-  color: #c62828;
+  color: var(--danger);
 }
 
+.icon-btn {
+  padding: 7px;
+}
+
+/* ---------- 도구 팔레트 ---------- */
+.palette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.palette-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid var(--line);
+}
+
+.palette-group:last-child {
+  border-right: none;
+}
+
+.palette-view {
+  margin-left: auto;
+}
+
+.tool {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 52px;
+  padding: 5px 6px 4px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.tool.active {
+  background: color-mix(in srgb, var(--yellow) 45%, var(--paper));
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ink {
+  width: 30px;
+  height: 30px;
+  margin: 0 1px;
+  padding: 0;
+  border: 3px solid var(--paper);
+  border-radius: 50%;
+  background: var(--ink-color);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.ink.selected {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* 형광펜 색은 둥근 모서리 사각형 = 형광펜 촉 */
+.ink-highlighter {
+  border-radius: 7px;
+}
+
+.size {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.size.selected {
+  border-color: var(--line-strong);
+}
+
+.size-dot {
+  border-radius: 50%;
+}
+
+/* ---------- 페이지 영역 ---------- */
 .editor-pages {
   flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+  overflow: auto;
+  background: var(--bg);
+}
+
+.pages-inner {
+  width: max-content;
+  min-width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  background: #eceef1;
+  gap: 20px;
+  padding: 20px 16px 96px;
 }
 
 .page {
-  width: min(100%, 900px);
+  position: relative;
   flex-shrink: 0;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 2px;
 }
 
 .note-canvas {
@@ -88,10 +187,89 @@
 }
 
 .add-page {
-  margin-bottom: 32px;
+  border-style: dashed;
+  color: var(--ink-2);
+  background: transparent;
+}
+
+/* ---------- 올가미 선택 막대 ---------- */
+.selection-bar {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-btn);
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(31, 42, 68, 0.25);
+  white-space: nowrap;
+}
+
+.selection-bar button {
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+}
+
+.selection-bar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.selection-bar .btn-danger {
+  color: #ff9a9d;
+}
+
+.selection-count {
+  padding: 0 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+/* ---------- 확대·축소 ---------- */
+.zoom-control {
+  position: absolute;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 4px 14px rgba(31, 42, 68, 0.1);
+}
+
+.zoom-control .icon-btn {
+  border-radius: 999px;
+}
+
+.zoom-value {
+  min-width: 56px;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .editor-message {
-  padding: 32px;
+  padding: 48px 16px;
   text-align: center;
+  color: var(--ink-2);
+}
+
+@media (max-width: 760px) {
+  .back-label {
+    display: none;
+  }
+
+  .save-state {
+    display: none;
+  }
+
+  .palette-view {
+    margin-left: 0;
+  }
 }

@@ -2,6 +2,7 @@
 // 원본 좌표(rawBBox)로 계산하므로 노트 정리(transform)를 해도 묶음이 바뀌지 않는다.
 // 기준값은 실제 필기로 조정한다(기획서 6-1 "AI 기능 설계").
 import { rawBBox } from './geometry'
+import { isHighlighter } from './tools'
 
 export const LINE_IDLE_MS = 2500 // 펜을 이만큼 떼고 있으면 줄이 끝난 것으로 본다
 export const DEFAULT_TEXT_HEIGHT = 40 // 페이지 좌표(가로 1000) 기준 보통 글자 높이
@@ -27,6 +28,13 @@ function verticalRelation(a, b) {
   return { overlapRatio: overlap / minH, gap: -overlap }
 }
 
+// 올가미로 직접 지정한 종류가 있으면 그걸 따른다
+function isBig(stroke, b) {
+  if (stroke.kind === 'drawing') return true
+  if (stroke.kind === 'text') return false
+  return isBigStroke(b)
+}
+
 function isBigStroke(b, ref = DEFAULT_TEXT_HEIGHT) {
   const h = height(b)
   const w = width(b)
@@ -46,7 +54,7 @@ const intersects = (a, b, pad = 0) =>
 /** 획이 이 (글씨) 줄에 이어지는지 */
 export function joinsGroup(stroke, group) {
   const b = rawBBox(stroke)
-  return !isBigStroke(b) && canJoinText(b, group.bbox)
+  return !isBig(stroke, b) && canJoinText(b, group.bbox)
 }
 
 function median(values) {
@@ -58,12 +66,13 @@ function median(values) {
 /** @returns {{id: string, kind: 'text'|'drawing', strokeIds: string[], bbox: object}[]} 위→아래 순 */
 export function groupLines(strokes) {
   const groups = []
-  const ordered = [...strokes].filter((s) => s.points.length > 0).sort((a, b) => a.t0 - b.t0)
+  // 형광펜은 글씨에 덧칠한 표시라 줄 묶기·판정에서 뺀다
+  const ordered = [...strokes].filter((s) => s.points.length > 0 && !isHighlighter(s)).sort((a, b) => a.t0 - b.t0)
 
   for (const stroke of ordered) {
     const b = rawBBox(stroke)
 
-    if (isBigStroke(b)) {
+    if (isBig(stroke, b)) {
       const drawing = groups.find((g) => g.big && intersects(b, g.bbox))
       if (drawing) {
         drawing.strokeIds.push(stroke.id)
@@ -97,6 +106,7 @@ export function groupLines(strokes) {
       groups.push({ id: stroke.id, big: false, strokeIds: [stroke.id], bbox: b })
     }
   }
+  const forcedText = new Set(ordered.filter((s) => s.kind === 'text').map((s) => s.id))
 
   const textHeights = groups.filter((g) => !g.big && height(g.bbox) <= 3 * DEFAULT_TEXT_HEIGHT).map((g) => height(g.bbox))
   const ref = textHeights.length ? median(textHeights) : DEFAULT_TEXT_HEIGHT
@@ -104,7 +114,7 @@ export function groupLines(strokes) {
   return groups
     .map((g) => ({
       id: g.id,
-      kind: g.big || height(g.bbox) > DRAWING_HEIGHT_RATIO * ref ? 'drawing' : 'text',
+      kind: g.big || (height(g.bbox) > DRAWING_HEIGHT_RATIO * ref && !g.strokeIds.some((id) => forcedText.has(id))) ? 'drawing' : 'text',
       strokeIds: g.strokeIds,
       bbox: g.bbox,
     }))

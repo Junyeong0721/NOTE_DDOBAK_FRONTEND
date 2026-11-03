@@ -26,9 +26,12 @@ export function serializeContent(content) {
 
 let strokeSeq = 0
 
-export function createStroke({ t0, color, width }) {
+export function createStroke({ t0, color, width, tool }) {
   strokeSeq += 1
-  return { id: `s_${t0}_${strokeSeq}`, t0, color, width, points: [], transform: null }
+  const stroke = { id: `s_${t0}_${strokeSeq}`, t0, color, width, points: [], transform: null }
+  // 1·2주차 노트와 같은 모양을 유지하려고 형광펜일 때만 tool을 저장한다 (없으면 펜)
+  if (tool === 'highlighter') stroke.tool = 'highlighter'
+  return stroke
 }
 
 const round = (n, digits) => {

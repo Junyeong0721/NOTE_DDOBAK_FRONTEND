@@ -29,11 +29,20 @@ export const listNotes = () => request(BASE)
 
 export const getNote = (id) => request(`${BASE}/${id}`)
 
-export const createNote = ({ title, content }) =>
-  request(BASE, { method: 'POST', body: JSON.stringify({ title, content }) })
+// folderId는 새 노트를 만들 때만 쓴다 (폴더 이동은 moveNoteToFolder)
+export function createNote({ title, content, folderId }) {
+  const body = { title, content }
+  if (folderId !== undefined) body.folderId = folderId
+  return request(BASE, { method: 'POST', body: JSON.stringify(body) })
+}
 
-export const updateNote = (id, { title, content }) =>
-  request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify({ title, content }) })
+// thumbnail이 없으면 서버가 기존 썸네일을 유지한다
+export const updateNote = (id, { title, content, thumbnail }) =>
+  request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify({ title, content, thumbnail }) })
+
+/** folderId: 폴더 id, null이면 미분류 */
+export const moveNoteToFolder = (id, folderId) =>
+  request(`${BASE}/${id}/folder`, { method: 'PATCH', body: JSON.stringify({ folderId }) })
 
 export async function deleteNote(id) {
   await request(`${BASE}/${id}`, { method: 'DELETE' })

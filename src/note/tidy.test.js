@@ -101,3 +101,20 @@ describe('untidyPage', () => {
     expect(out.every((s) => s.transform === null)).toBe(true)
   })
 })
+
+describe('tidyPage with highlighter', () => {
+  it('highlighter follows the text line it covers when tidying', () => {
+    const line = tiltedLine('a', 0, 5)
+    const hl = { ...fakeStroke('hl', 9, 100, 250, 340, 290), tool: 'highlighter' }
+    const out = tidyPage([...line, hl])
+    const lineT = out.find((s) => s.id === 'a0').transform
+    expect(lineT).not.toBeNull()
+    expect(out.find((s) => s.id === 'hl').transform).toEqual(lineT)
+  })
+
+  it('highlighter with no text line under it stays put', () => {
+    const hl = { ...fakeStroke('hl', 9, 100, 900, 340, 920), tool: 'highlighter' }
+    const out = tidyPage([...tiltedLine('a', 0, 5), hl])
+    expect(out.find((s) => s.id === 'hl').transform).toBeNull()
+  })
+})
