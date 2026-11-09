@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FOLDER_COLORS } from '../api/folders'
 import { getNote, updateNote } from '../api/notes'
-import { recognizeLine } from '../api/ocr'
+import { recognizeLine, ocrLabel, ocrErrorLabel } from '../api/ocr'
 import { parseContent, serializeContent } from '../note/content'
 import { canRedo, canUndo, createHistory, push, redo, undo } from '../note/history'
 import { deleteStrokes, selectionBBox, setStrokesKind } from '../note/lasso'
@@ -176,7 +176,7 @@ export default function NoteEditor({ noteId, folder, onBack }) {
 
   const updatePage = (pageIndex, fn) => changePages(pages.map((p, i) => (i === pageIndex ? { strokes: fn(p.strokes) } : p)))
 
-  // 한 줄이 끝나면 그 줄 이미지를 OCR로 보낸다 (지금은 가짜 결과)
+  // 한 줄이 끝나면 그 줄 이미지를 글자 인식(Google Vision)으로 보낸다
   const requestOcr = useCallback((line, strokes) => {
     if (line.kind !== 'text') return
     const key = `${line.id}:${line.strokeIds.length}`
@@ -185,8 +185,8 @@ export default function NoteEditor({ noteId, folder, onBack }) {
     const byId = new Map(strokes.map((s) => [s.id, s]))
     const image = renderLineToPng(line.strokeIds.map((id) => byId.get(id)).filter(Boolean))
     recognizeLine(image)
-      .then((r) => setOcrLabels((labels) => ({ ...labels, [line.id]: r.text || r.engine })))
-      .catch(() => setOcrLabels((labels) => ({ ...labels, [line.id]: '인식 실패' })))
+      .then((r) => setOcrLabels((labels) => ({ ...labels, [line.id]: ocrLabel(r) })))
+      .catch((e) => setOcrLabels((labels) => ({ ...labels, [line.id]: ocrErrorLabel(e) })))
   }, [])
 
   function handlePenDown() {
