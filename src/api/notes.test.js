@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createNote, deleteNote, getNote, EMPTY_CONTENT } from './notes'
+import { createNote, deleteNote, getNote, listNotes, EMPTY_CONTENT } from './notes'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -62,5 +62,17 @@ describe('notes api: folders and thumbnails', () => {
     await moveNoteToFolder(1, null)
     expect(f).toHaveBeenCalledWith('/api/notes/1/folder', expect.objectContaining({ method: 'PATCH' }))
     expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ folderId: null })
+  })
+
+  it('tells the app when the login is gone (401), so it can show the login screen', async () => {
+    const seen = []
+    const target = new EventTarget()
+    globalThis.window = target
+    target.addEventListener('ddobak:unauthorized', () => seen.push('401'))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(
+      new Response(JSON.stringify({ message: '로그인이 필요합니다.' }), { status: 401 })))
+    await expect(listNotes()).rejects.toThrow('로그인이 필요합니다.')
+    expect(seen).toEqual(['401'])
+    delete globalThis.window
   })
 })

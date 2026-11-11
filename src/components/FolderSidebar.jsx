@@ -21,11 +21,13 @@ function FolderTab({ label, color, count, selected, onSelect, variant }) {
   )
 }
 
-export default function FolderSidebar({ folders, counts, selected, onSelect, onCreateFolder }) {
+export default function FolderSidebar({ folders, counts, selected, onSelect, onCreateFolder, onHome }) {
   return (
     <nav className="sidebar" aria-label="폴더">
       <div className="sidebar-logo">
-        <Logo />
+        <button type="button" className="btn-quiet logo-home" aria-label="홈으로" onClick={onHome}>
+          <Logo />
+        </button>
       </div>
       <ul className="folder-tabs">
         <FolderTab label="전체 노트" variant="all" color="var(--yellow)" count={counts.all} selected={selected === ALL} onSelect={() => onSelect(ALL)} />
