@@ -55,3 +55,6 @@ export const TrashIcon = () => (
 export const SettingsIcon = () => (
   <svg {...base}><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></svg>
 )
+export const FontIcon = () => (
+  <svg {...base}><path d="M4 19l5-14h1l5 14" /><path d="M6.2 13.5h6.6" /><path d="M17 11v8" /><path d="M15 11.5c1.5-1 4-1 4 1.2V19" /></svg>
+)

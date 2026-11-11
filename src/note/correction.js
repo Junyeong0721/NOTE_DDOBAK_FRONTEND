@@ -21,9 +21,20 @@ const centerX = (b) => (b.minX + b.maxX) / 2
  * origin: 줄 이미지를 만들 때의 { minX, minY, fit } (페이지 x = minX + 이미지 x / fit)
  */
 export function buildCorrection({ ocr, origin, strokes, fontId }) {
+  // 인식 글자(text)의 띄어쓰기를 글자에 표시해 둔다 (chars에는 공백이 없다)
+  const text = [...(ocr?.text ?? '')]
+  let ti = 0
   const boxes = (ocr?.chars ?? [])
     .filter((c) => c.ch && c.ch.trim())
-    .map((c) => ({ ch: c.ch, x0: origin.minX + c.x / origin.fit, x1: origin.minX + (c.x + c.w) / origin.fit, strokeIds: [] }))
+    .map((c) => {
+      let sp = false
+      while (ti < text.length && !text[ti].trim()) {
+        sp = true
+        ti += 1
+      }
+      if (text[ti] === c.ch[0]) ti += [...c.ch].length
+      return { ch: c.ch, sp, x0: origin.minX + c.x / origin.fit, x1: origin.minX + (c.x + c.w) / origin.fit, strokeIds: [] }
+    })
     .sort((a, b) => a.x0 + a.x1 - (b.x0 + b.x1))
   if (boxes.length === 0) return null
 
@@ -43,7 +54,7 @@ export function buildCorrection({ ocr, origin, strokes, fontId }) {
     best.strokeIds.push(s.id)
   }
 
-  const chars = boxes.filter((b) => b.strokeIds.length > 0).map(({ ch, strokeIds }) => ({ ch, strokeIds }))
+  const chars = boxes.filter((b) => b.strokeIds.length > 0).map(({ ch, sp, strokeIds }) => (sp ? { ch, strokeIds, sp } : { ch, strokeIds }))
   return chars.length > 0 ? { id: newId(), fontId, chars } : null
 }
 
@@ -89,25 +100,64 @@ function fitLine(points) {
   return (x) => my + b * (x - mx)
 }
 
-/** 글자 폭 상한 = 이웃 글자 가운데까지 거리 × SLOT_FILL (빽빽하게 쓴 줄에서 글자끼리 겹치지 않게) */
+/** 글자 폭 상한 = 글자 간격 × SLOT_FILL (빽빽하게 쓴 줄에서 글자끼리 겹치지 않게) */
 export const SLOT_FILL = 0.95
+/** 띄어쓰기 = 글자 간격의 WORD_GAP배 */
+export const WORD_GAP = 1.6
+/** 페이지의 다른 줄들과 크기 차이가 이 비율 안이면 같은 크기로 맞춘다 (훨씬 큰 제목 줄은 그대로) */
+export const SIZE_SNAP = 0.25
 
-/** 그릴 보정 글자 목록: [{ ch, x, y(가운데), size(글자 실제 높이), maxWidth, color, fontId }] — 페이지 좌표 */
-export function correctionGlyphs(strokes, corrections) {
+function median(values) {
+  const s = [...values].sort((a, b) => a - b)
+  const n = s.length
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2
+}
+
+/** 첫 글자와 끝 글자 사이에 글자를 고르게 놓는다. 띄어쓰기(sp)는 WORD_GAP만큼 */
+function evenXs(chars, centers) {
+  if (centers.length === 1) return { xs: [centers[0].x], step: null }
+  const units = chars.slice(1).map((ch) => (ch.sp ? WORD_GAP : 1))
+  const step = (centers[centers.length - 1].x - centers[0].x) / units.reduce((a, b) => a + b, 0)
+  const xs = [centers[0].x]
+  for (const u of units) xs.push(xs[xs.length - 1] + u * step)
+  return { xs, step }
+}
+
+/**
+ * 그릴 보정 글자 목록: [{ ch, x, y(가운데), size(글자 실제 높이), maxWidth, color, fontId, group, shared }] — 페이지 좌표
+ * shared: 페이지 공통 크기로 맞춘 줄 (그릴 때 이 줄들은 글자 크기를 하나로 맞춘다)
+ * 균일하게: 한 줄 안에서는 글자 간격·크기·기준선이 같고, 페이지의 비슷한 줄끼리는 크기도 같다.
+ * options.fontId: 설정에서 고른 글씨체로 모든 줄을 그린다 (없으면 보정할 때의 글씨체)
+ */
+export function correctionGlyphs(strokes, corrections, options = {}) {
   if (!corrections?.length) return []
   const byId = new Map(strokes.filter((s) => s.points.length > 0).map((s) => [s.id, s]))
-  const glyphs = []
+  const lines = []
   for (const c of corrections) {
-    const active = c.chars.filter((ch) => !ch.off && ch.strokeIds.length > 0 && ch.strokeIds.every((id) => byId.has(id)))
-    if (active.length === 0) continue
-    const boxes = active.map((ch) => boxOfIds(ch.strokeIds, byId))
-    const size = (Math.max(...boxes.map((b) => b.maxY)) - Math.min(...boxes.map((b) => b.minY))) * GLYPH_SCALE
-    const centers = boxes.map((b) => ({ x: centerX(b), y: (b.minY + b.maxY) / 2 }))
+    // 원래대로 돌린 글자도 자리는 차지한다 (그 글자의 원래 획이 보이므로)
+    const placed = c.chars.filter((ch) => ch.strokeIds.length > 0 && ch.strokeIds.every((id) => byId.has(id)))
+    if (!placed.some((ch) => !ch.off)) continue
+    const boxes = placed.map((ch) => boxOfIds(ch.strokeIds, byId))
+    const order = boxes.map((b, i) => i).sort((a, b) => centerX(boxes[a]) - centerX(boxes[b]))
+    const chars = order.map((i) => placed[i])
+    const centers = order.map((i) => ({ x: centerX(boxes[i]), y: (boxes[i].minY + boxes[i].maxY) / 2 }))
+    const height = Math.max(...boxes.map((b) => b.maxY)) - Math.min(...boxes.map((b) => b.minY))
+    lines.push({ c, chars, centers, size: height * GLYPH_SCALE })
+  }
+
+  const common = median(lines.map((l) => l.size))
+  const glyphs = []
+  for (const { c, chars, centers, size } of lines) {
+    const shared = Math.abs(size - common) <= common * SIZE_SNAP
+    const lineSize = shared ? common : size
     const yAt = fitLine(centers)
-    active.forEach((ch, i) => {
-      const gaps = [centers[i - 1], centers[i + 1]].filter(Boolean).map((n) => Math.abs(n.x - centers[i].x))
-      const maxWidth = gaps.length ? Math.min(...gaps) * SLOT_FILL : null
-      glyphs.push({ ch: ch.ch, x: centers[i].x, y: yAt(centers[i].x), size, maxWidth, color: byId.get(ch.strokeIds[0]).color, fontId: c.fontId })
+    const { xs, step } = evenXs(chars, centers)
+    chars.forEach((ch, i) => {
+      if (ch.off) return
+      glyphs.push({
+        ch: ch.ch, x: xs[i], y: yAt(xs[i]), size: lineSize, maxWidth: step ? step * SLOT_FILL : null,
+        color: byId.get(ch.strokeIds[0]).color, fontId: options.fontId ?? c.fontId, group: c.id, shared,
+      })
     })
   }
   return glyphs

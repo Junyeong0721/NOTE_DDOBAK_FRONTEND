@@ -14,6 +14,7 @@ import { HIGHLIGHTER_COLORS, HIGHLIGHTER_SIZES, PEN_COLORS, PEN_SIZES, isHighlig
 import { clampZoom, zoomAround } from '../note/zoom'
 import { DEFAULT_SETTINGS } from '../settings'
 import CorrectionBar from './CorrectionBar'
+import SettingsDialog from './SettingsDialog'
 import { BackIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
 import NoteCanvas from './NoteCanvas'
 import SelectionBar from './SelectionBar'
@@ -49,7 +50,7 @@ function saveFlag(key, value) {
   }
 }
 
-export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_SETTINGS }) {
+export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_SETTINGS, onSettingsChange }) {
   const [loadError, setLoadError] = useState('')
   const [title, setTitle] = useState('')
   const [meta, setMeta] = useState(null) // { version, page }
@@ -64,6 +65,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
   const [saveState, setSaveState] = useState('saved')
   const [ocrLabels, setOcrLabels] = useState({}) // 줄 id → 인식 결과 표시
   const [selection, setSelection] = useState(null) // { pageIndex, ids }
+  const [showSettings, setShowSettings] = useState(false)
   const [bar, setBar] = useState(null) // 보정 막대: { mode: 'suggest', pageIndex, correction } | { mode: 'edit', pageIndex, correctionId } | { mode: 'busy' | 'message' }
   const [zoom, setZoom] = useState(1)
   const [baseWidth, setBaseWidth] = useState(MAX_PAGE_WIDTH)
@@ -116,7 +118,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
       const content = serializeContent({ version: meta.version, page: meta.page, pages: history.present })
       let thumbnail
       try {
-        thumbnail = renderThumbnail(history.present[0])
+        thumbnail = renderThumbnail(history.present[0], settings.fontId)
       } catch {
         thumbnail = undefined // 썸네일을 못 만들어도 저장은 한다
       }
@@ -125,7 +127,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         .catch(() => setSaveState('error'))
     }, SAVE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [history, title, meta, noteId])
+  }, [history, title, meta, noteId, settings.fontId])
 
   useEffect(() => () => clearTimeout(idleTimerRef.current), [])
 
@@ -348,6 +350,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         showLines={showLines}
         onToggleLines={() => setShowLines((v) => !v)}
         tidied={tidied}
+        onOpenSettings={() => setShowSettings(true)}
         onTidy={() => {
           setSelection(null)
           changePages(pages.map((p) => ({ ...p, strokes: tidied ? untidyPage(p.strokes) : tidyPage(p.strokes) })))
@@ -376,6 +379,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
                   lineLabels={ocrLabels}
                   corrections={p.corrections}
                   focusBox={focusBox}
+                  fontId={settings.fontId}
                   selectionIds={selectedIds}
                   onSelectionChange={(ids) => setSelection(ids.length ? { pageIndex: i, ids } : null)}
                   onPenDown={handlePenDown}
@@ -420,10 +424,15 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         </div>
       </main>
 
+      {showSettings && onSettingsChange && (
+        <SettingsDialog settings={settings} onChange={onSettingsChange} onClose={() => setShowSettings(false)} />
+      )}
+
       {bar && (
         <CorrectionBar
           bar={bar}
           correction={barCorrection}
+          fontId={settings.fontId}
           onApply={applySuggestion}
           onToggle={(index) => updateCorrections(bar.pageIndex, (cs) => toggleChar(cs, bar.correctionId, index))}
           onRemove={() => {

@@ -6,7 +6,7 @@ import { fontFamily } from '../note/fonts'
  * - edit: 적용된 보정의 글자 칩. 누르면 그 글자만 원래대로 ↔ 보정. [보정 취소] [완료]
  * - busy / message: 인식 중이거나 알려 줄 말이 있을 때
  */
-export default function CorrectionBar({ bar, correction, onApply, onToggle, onRemove, onClose }) {
+export default function CorrectionBar({ bar, correction, fontId, onApply, onToggle, onRemove, onClose }) {
   if (bar.mode === 'busy' || bar.mode === 'message') {
     return (
       <div className="correction-bar" role="status">
@@ -16,7 +16,7 @@ export default function CorrectionBar({ bar, correction, onApply, onToggle, onRe
     )
   }
   if (!correction) return null
-  const family = `${fontFamily(correction.fontId)}, sans-serif`
+  const family = `${fontFamily(fontId ?? correction.fontId)}, sans-serif`
 
   if (bar.mode === 'suggest') {
     return (

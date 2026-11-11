@@ -114,6 +114,7 @@ function App() {
       <NoteEditor
         noteId={open.id}
         settings={settings}
+        onSettingsChange={changeSettings}
         folder={folders.find((f) => f.id === open.folderId) ?? null}
         onBack={() => {
           setOpen(null)
@@ -151,8 +152,8 @@ function App() {
               <SearchIcon />
               <input type="search" value={query} placeholder="노트 제목 검색" aria-label="노트 제목 검색" onChange={(e) => setQuery(e.target.value)} />
             </label>
-            <button type="button" className="btn-quiet icon-btn" aria-label="설정" title="설정" onClick={() => setShowSettings(true)}>
-              <SettingsIcon />
+            <button type="button" className="btn-quiet settings-btn" onClick={() => setShowSettings(true)}>
+              <SettingsIcon /> <span>설정·글씨체</span>
             </button>
             <button type="button" className="btn-primary" onClick={handleCreate}>
               <PlusIcon /> 새 노트

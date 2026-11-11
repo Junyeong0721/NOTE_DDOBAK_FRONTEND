@@ -22,7 +22,7 @@ const center = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
  */
 export default function NoteCanvas({
   strokes, onStrokesChange, tool, color, width,
-  showGuides, lines, showLines, lineLabels, corrections, focusBox,
+  showGuides, lines, showLines, lineLabels, corrections, focusBox, fontId,
   selectionIds, onSelectionChange, onPenDown, onPinch, scrollContainer,
 }) {
   const canvasRef = useRef(null)
@@ -35,7 +35,7 @@ export default function NoteCanvas({
   const lastPenRef = useRef(0)
   const frameRef = useRef(0)
   const viewRef = useRef(null)
-  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox }
+  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId }
 
   const redraw = useCallback(() => {
     frameRef.current = 0
@@ -53,7 +53,7 @@ export default function NoteCanvas({
       hiddenIds: erasedRef.current,
       selectionBox: v.selectionIds?.length ? selectionBBox(view, v.selectionIds) : null,
       lassoPath: active?.mode === 'lasso' ? active.path : null,
-      corrections: v.corrections, focusBox: v.focusBox,
+      corrections: v.corrections, focusBox: v.focusBox, fontId: v.fontId,
     })
   }, [])
 
@@ -89,10 +89,10 @@ export default function NoteCanvas({
 
   useEffect(() => {
     scheduleRedraw()
-  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, scheduleRedraw])
+  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId, scheduleRedraw])
 
   // 보정 글자의 글꼴을 받은 뒤 다시 그린다 (받기 전에는 기본 글꼴로 잠깐 보일 수 있음)
-  const fontKey = [...new Set((corrections ?? []).map((c) => c.fontId))].sort().join(',')
+  const fontKey = corrections?.length ? (fontId ?? [...new Set(corrections.map((c) => c.fontId))].sort().join(',')) : ''
   useEffect(() => {
     if (!fontKey) return undefined
     let alive = true

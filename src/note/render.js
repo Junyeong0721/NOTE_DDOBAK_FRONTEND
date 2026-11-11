@@ -151,22 +151,34 @@ function hangulRatio(ctx, family) {
   return ratio
 }
 
-/** 보정 글자: 원래 획 대신 목표 글씨체로 그린다. size = '가' 같은 보통 글자의 실제 높이 */
+/**
+ * 보정 글자: 원래 획 대신 목표 글씨체로 그린다. size = '가' 같은 보통 글자의 실제 높이.
+ * 한 줄(group)은 모두 같은 크기: 가장 넓은 글자가 간격에 들어가도록 줄 전체를 같이 줄인다.
+ * 페이지 공통 크기 줄(shared)끼리는 그중 가장 작은 크기로 맞춰 페이지 전체가 고르게 보이게 한다.
+ */
 function drawGlyphs(ctx, glyphs, scale) {
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
+  const linePx = new Map()
   for (const g of glyphs) {
     const family = fontFamily(g.fontId)
     let px = (g.size * scale) / hangulRatio(ctx, family)
-    ctx.font = `${px}px ${family}, sans-serif`
-    let m = ctx.measureText(g.ch)
-    // 이웃 글자와 겹칠 만큼 넓으면 그만큼만 줄인다
-    if (g.maxWidth && m?.width > g.maxWidth * scale) {
-      px *= (g.maxWidth * scale) / m.width
+    if (g.maxWidth) {
       ctx.font = `${px}px ${family}, sans-serif`
-      m = ctx.measureText(g.ch)
+      const w = ctx.measureText(g.ch)?.width
+      if (w > g.maxWidth * scale) px *= (g.maxWidth * scale) / w
     }
+    linePx.set(g.group, Math.min(linePx.get(g.group) ?? Infinity, px))
+  }
+  const sharedGroups = new Set(glyphs.filter((g) => g.shared).map((g) => g.group))
+  const sharedPx = Math.min(...[...sharedGroups].map((id) => linePx.get(id)))
+  for (const id of sharedGroups) linePx.set(id, sharedPx)
+  for (const g of glyphs) {
+    const family = fontFamily(g.fontId)
+    const px = linePx.get(g.group)
+    ctx.font = `${px}px ${family}, sans-serif`
+    const m = ctx.measureText(g.ch)
     ctx.fillStyle = g.color
     // 글자마다 실제 높이의 가운데를 g.y에 맞춘다 (기준선 = 가운데 + (위 - 아래) / 2)
     const asc = m?.actualBoundingBoxAscent
@@ -193,11 +205,12 @@ function drawLasso(ctx, path, scale) {
 /**
  * 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획.
  * hiddenIds: 지우개로 지우는 중인 획, corrections: 글씨 보정(보정된 글자의 원래 획은 숨기고 글씨체로 그림)
+ * fontId: 설정에서 고른 글씨체 — 모든 보정 줄을 이 글씨체로 그린다
  */
 export function drawPage(ctx, {
   strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
   activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
-  corrections = null, focusBox = null,
+  corrections = null, focusBox = null, fontId = null,
 }) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
@@ -211,7 +224,7 @@ export function drawPage(ctx, {
   for (const s of visible) if (isHighlighter(s)) drawStroke(ctx, s, scale)
   if (activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   for (const s of visible) if (!isHighlighter(s)) drawStroke(ctx, s, scale)
-  drawGlyphs(ctx, correctionGlyphs(present, corrections), scale)
+  drawGlyphs(ctx, correctionGlyphs(present, corrections, fontId ? { fontId } : {}), scale)
   if (activeStroke && !activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   if (focusBox) drawFocus(ctx, focusBox, scale)
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
