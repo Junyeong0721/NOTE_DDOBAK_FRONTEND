@@ -3,6 +3,7 @@ import { FOLDER_COLORS, createFolder, deleteFolder, listFolders, updateFolder } 
 import { EMPTY_CONTENT, createNote, deleteNote, listNotes, moveNoteToFolder } from './api/notes'
 import FolderDialog from './components/FolderDialog'
 import FolderSidebar from './components/FolderSidebar'
+import Home from './components/Home'
 import { EditIcon, PlusIcon, SearchIcon, SettingsIcon } from './components/Icons'
 import NoteEditor from './components/NoteEditor'
 import NoteGrid from './components/NoteGrid'
@@ -18,7 +19,7 @@ function emptyMessage({ selected, query, total }) {
   return '이 폴더에 노트가 없어요. 새 노트를 만들면 여기에 들어가요.'
 }
 
-function App() {
+function App({ user, onLogout }) {
   const [notes, setNotes] = useState([])
   const [folders, setFolders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,6 +30,7 @@ function App() {
   const [dialog, setDialog] = useState(null) // { folder } | { folder: null }
   const [settings, setSettings] = useState(loadSettings) // { fontId, autoSuggest } — 이 기기에 저장
   const [showSettings, setShowSettings] = useState(false)
+  const [view, setView] = useState('home') // home | library
 
   const changeSettings = useCallback((next) => {
     setSettings(next)
@@ -58,9 +60,9 @@ function App() {
   const currentFolder = typeof selected === 'number' ? folders.find((f) => f.id === selected) : null
   const heading = selected === ALL ? '전체 노트' : selected === UNFILED ? '미분류' : currentFolder?.name ?? ''
 
-  async function handleCreate() {
+  async function handleCreate(folderId = currentFolder?.id) {
     try {
-      const note = await createNote({ title: '새 노트', content: EMPTY_CONTENT, folderId: currentFolder?.id })
+      const note = await createNote({ title: '새 노트', content: EMPTY_CONTENT, folderId })
       setOpen({ id: note.id, folderId: note.folderId ?? null })
     } catch (e) {
       setError(e.message)
@@ -124,6 +126,29 @@ function App() {
     )
   }
 
+  const settingsDialog = showSettings && <SettingsDialog settings={settings} onChange={changeSettings} onClose={() => setShowSettings(false)} />
+  const openNote = (id) => setOpen({ id, folderId: notes.find((n) => n.id === id)?.folderId ?? null })
+
+  if (view === 'home') {
+    return (
+      <>
+        <Home
+          user={user}
+          notes={notes}
+          folders={folders}
+          loading={loading}
+          error={error}
+          onOpen={openNote}
+          onCreate={() => handleCreate(null)}
+          onShowAll={() => setView('library')}
+          onSettings={() => setShowSettings(true)}
+          onLogout={onLogout}
+        />
+        {settingsDialog}
+      </>
+    )
+  }
+
   const empty = emptyMessage({ selected, query, total: notes.length })
 
   return (
@@ -134,6 +159,7 @@ function App() {
         selected={selected}
         onSelect={setSelected}
         onCreateFolder={() => setDialog({ folder: null })}
+        onHome={() => setView('home')}
       />
       <main className="library-main">
         <header className="library-header">
@@ -155,7 +181,7 @@ function App() {
             <button type="button" className="btn-quiet settings-btn" onClick={() => setShowSettings(true)}>
               <SettingsIcon /> <span>설정·글씨체</span>
             </button>
-            <button type="button" className="btn-primary" onClick={handleCreate}>
+            <button type="button" className="btn-primary" onClick={() => handleCreate()}>
               <PlusIcon /> 새 노트
             </button>
           </div>
@@ -169,13 +195,13 @@ function App() {
           <NoteGrid
             notes={visible}
             folders={folders}
-            onOpen={(id) => setOpen({ id, folderId: notes.find((n) => n.id === id)?.folderId ?? null })}
+            onOpen={openNote}
             onMove={handleMove}
             onDelete={handleDelete}
           />
         )}
       </main>
-      {showSettings && <SettingsDialog settings={settings} onChange={changeSettings} onClose={() => setShowSettings(false)} />}
+      {settingsDialog}
       {dialog && <FolderDialog folder={dialog.folder} onSave={saveFolder} onDelete={removeFolder} onClose={() => setDialog(null)} />}
     </div>
   )

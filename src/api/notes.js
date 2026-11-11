@@ -11,6 +11,10 @@ export async function request(path, options = {}) {
   })
 
   if (!res.ok) {
+    // 로그인이 풀렸으면(세션 만료 등) 앱이 로그인 화면으로 돌아가게 알린다. 내 정보 확인(/api/auth/me)은 제외
+    if (res.status === 401 && !path.startsWith('/api/auth/') && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('ddobak:unauthorized'))
+    }
     let message = `요청에 실패했습니다. (${res.status})`
     try {
       const body = await res.json()
