@@ -132,6 +132,23 @@ describe('correctionGlyphs', () => {
     expect(correctionGlyphs(lines, cs3).map((g) => g.shared)).toEqual([true, true, true, true, false, false])
   })
 
+  it('keeps the size of a line the user resized by hand', () => {
+    const lines = [
+      st('a', 100, 50, 110, 90), st('b', 140, 50, 150, 90), // 높이 40
+      st('c', 100, 150, 110, 194), st('d', 140, 150, 150, 194), // 높이 44
+      st('e', 100, 250, 110, 300), st('f', 140, 250, 150, 300), // 높이 50, 직접 키움
+    ]
+    const cs3 = [
+      corr([{ ch: '가', strokeIds: ['a'] }, { ch: '나', strokeIds: ['b'] }], 'l1'),
+      corr([{ ch: '다', strokeIds: ['c'] }, { ch: '라', strokeIds: ['d'] }], 'l2'),
+      { ...corr([{ ch: '마', strokeIds: ['e'] }, { ch: '바', strokeIds: ['f'] }], 'l3'), sized: true },
+    ]
+    const g = correctionGlyphs(lines, cs3)
+    expect(g[4].size).toBeCloseTo(50 * GLYPH_SCALE, 6)
+    expect(g[4].shared).toBe(false)
+    expect(g[0].size).toBeCloseTo(42 * GLYPH_SCALE, 6) // 나머지 두 줄(40, 44)의 가운데 값
+  })
+
   it('draws every line in the font given by the settings when asked', () => {
     expect(correctionGlyphs(strokes, cs, { fontId: 'hi-melody' }).every((g) => g.fontId === 'hi-melody')).toBe(true)
   })

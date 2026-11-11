@@ -3,6 +3,7 @@ import { PAGE_HEIGHT, PAGE_WIDTH } from './content'
 import { correctedStrokeIds, correctionGlyphs } from './correction'
 import { fontFamily } from './fonts'
 import { strokeBBox, strokePoints } from './geometry'
+import { selectionHandles } from './lasso'
 import { HIGHLIGHTER_ALPHA, isHighlighter } from './tools'
 
 export const GUIDE_SPACING = 50
@@ -126,7 +127,9 @@ function drawLineBoxes(ctx, strokes, lines, lineLabels, scale) {
 }
 
 const SELECTION_COLOR = '#2563eb'
-const SELECTION_PAD = 8
+export const SELECTION_PAD = 8
+
+export const HANDLE_SIZE = 10 // 크기 손잡이 한 변 (페이지 좌표)
 
 function drawSelection(ctx, box, scale) {
   ctx.save()
@@ -140,6 +143,14 @@ function drawSelection(ctx, box, scale) {
   const h = (box.maxY - box.minY + SELECTION_PAD * 2) * scale
   ctx.fillRect(x, y, w, h)
   ctx.strokeRect(x, y, w, h)
+  // 네 모서리 크기 손잡이
+  ctx.setLineDash([])
+  ctx.fillStyle = '#ffffff'
+  for (const h of selectionHandles(box, SELECTION_PAD)) {
+    const hs = HANDLE_SIZE * scale
+    ctx.fillRect(h.x * scale - hs / 2, h.y * scale - hs / 2, hs, hs)
+    ctx.strokeRect(h.x * scale - hs / 2, h.y * scale - hs / 2, hs, hs)
+  }
   ctx.restore()
 }
 

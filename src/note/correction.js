@@ -164,7 +164,7 @@ export function correctionGlyphs(strokes, corrections, options = {}) {
     split.forEach((row, k) => {
       if (!row.some((p) => !p.ch.off)) return
       const height = Math.max(...row.map((p) => p.box.maxY)) - Math.min(...row.map((p) => p.box.minY))
-      rows.push({ c, group: split.length > 1 ? `${c.id}:${k}` : c.id, row, size: height * GLYPH_SCALE, start: row[0].box.minX })
+      rows.push({ c, group: split.length > 1 ? `${c.id}:${k}` : c.id, row, size: height * GLYPH_SCALE, start: row[0].box.minX, fixed: Boolean(c.sized) })
     })
   }
   if (rows.length === 0) return []
@@ -177,10 +177,12 @@ export function correctionGlyphs(strokes, corrections, options = {}) {
     r.shift = anchor - r.start
   }
 
-  const common = median(rows.map((r) => r.size))
+  // 올가미로 크기를 직접 바꾼 줄(sized)은 페이지 크기 맞추기에서 빼서 그 크기를 그대로 둔다
+  const free = rows.filter((r) => !r.fixed)
+  const common = free.length ? median(free.map((r) => r.size)) : 0
   const glyphs = []
-  for (const { c, group, row, size, shift } of rows) {
-    const shared = Math.abs(size - common) <= common * SIZE_SNAP
+  for (const { c, group, row, size, shift, fixed } of rows) {
+    const shared = !fixed && Math.abs(size - common) <= common * SIZE_SNAP
     const centers = row.map((p) => ({ x: centerX(p.box), y: (p.box.minY + p.box.maxY) / 2 }))
     const y = centers.reduce((t, p) => t + p.y, 0) / centers.length
     const { xs, step } = evenXs(row.map((p) => p.ch), centers)

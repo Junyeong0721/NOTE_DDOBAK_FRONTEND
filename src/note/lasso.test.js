@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { strokeBBox, strokePoints } from './geometry'
-import { deleteStrokes, moveStrokes, pointInPolygon, selectStrokes, selectionBBox, setStrokesKind } from './lasso'
+import {
+  RESIZE_MIN, deleteStrokes, handleAt, moveStrokes, pointInPolygon, resizeFactor, resizeStrokes, selectStrokes, selectionBBox, selectionHandles, setStrokesKind,
+} from './lasso'
 import { groupLines } from './lines'
 import { tidyPage } from './tidy'
 
@@ -108,5 +110,44 @@ describe('deleteStrokes and setStrokesKind', () => {
   it('setting kind to null returns to automatic', () => {
     const marked = setStrokesKind([fakeStroke('a', 0, 0, 0, 1, 1)], ['a'], 'drawing')
     expect('kind' in setStrokesKind(marked, ['a'], null)[0]).toBe(false)
+  })
+})
+
+describe('lasso resize', () => {
+  const box = { minX: 100, minY: 100, maxX: 200, maxY: 150 }
+
+  it('puts a handle on each corner of the selection box, opposite corner as the anchor', () => {
+    const hs = selectionHandles(box, 8)
+    expect(hs).toHaveLength(4)
+    const br = hs.find((h) => h.corner === 'br')
+    expect(br).toEqual({ corner: 'br', x: 208, y: 158, anchor: { x: 100, y: 100 } })
+    expect(handleAt(box, { x: 205, y: 160 }, 8, 12).corner).toBe('br')
+    expect(handleAt(box, { x: 150, y: 125 }, 8, 12)).toBeNull()
+  })
+
+  it('scales by how far the pen moved from the anchor, never below the minimum', () => {
+    const anchor = { x: 100, y: 100 }
+    expect(resizeFactor(anchor, { x: 200, y: 150 }, { x: 300, y: 200 })).toBeCloseTo(2, 6)
+    expect(resizeFactor(anchor, { x: 200, y: 150 }, { x: 150, y: 125 })).toBeCloseTo(0.5, 6)
+    expect(resizeFactor(anchor, { x: 200, y: 150 }, { x: 100, y: 100 })).toBe(RESIZE_MIN)
+  })
+
+  it('scales the selected strokes around the anchor, line width too', () => {
+    const strokes = [fakeStroke('a', 1, 100, 100, 200, 150), fakeStroke('b', 2, 300, 300, 310, 310)]
+    const out = resizeStrokes(strokes, ['a'], { x: 100, y: 100 }, 2)
+    expect(strokeBBox(out[0])).toEqual({ minX: 100, minY: 100, maxX: 300, maxY: 200 })
+    expect(out[0].width).toBeCloseTo(4.8, 6)
+    expect(out[1]).toBe(strokes[1])
+  })
+
+  it('scales what is shown even for strokes rotated by note tidying', () => {
+    const rotated = fakeStroke('r', 1, 100, 100, 140, 100, { transform: { dx: 5, dy: 0, rotate: 0.3, ox: 120, oy: 100 } })
+    const before = strokePoints(rotated)
+    const anchor = { x: 0, y: 0 }
+    const after = strokePoints(resizeStrokes([rotated], ['r'], anchor, 1.5)[0])
+    after.forEach(([x, y], i) => {
+      expect(x).toBeCloseTo(before[i][0] * 1.5, 0)
+      expect(y).toBeCloseTo(before[i][1] * 1.5, 0)
+    })
   })
 })
