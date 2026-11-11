@@ -35,7 +35,8 @@ export function clientToPage(clientX, clientY, rect) {
   return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale }
 }
 
-function distToSegment(px, py, [x0, y0], [x1, y1]) {
+/** 점 (px, py)와 선분 [x0,y0]–[x1,y1] 사이 거리 */
+export function distToSegment(px, py, [x0, y0], [x1, y1]) {
   const vx = x1 - x0
   const vy = y1 - y0
   const len2 = vx * vx + vy * vy

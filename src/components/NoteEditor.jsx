@@ -10,7 +10,8 @@ import { renderLineToPng } from '../note/lineImage'
 import { groupLines, isLineEnd } from '../note/lines'
 import { renderThumbnail } from '../note/thumbnail'
 import { tidyPage, untidyPage } from '../note/tidy'
-import { HIGHLIGHTER_COLORS, HIGHLIGHTER_SIZES, PEN_COLORS, PEN_SIZES, isHighlighter } from '../note/tools'
+import { HIGHLIGHTER_COLORS, PEN_COLORS, isHighlighter } from '../note/tools'
+import { loadToolPrefs, saveToolPrefs } from '../note/toolPrefs'
 import { clampZoom, zoomAround } from '../note/zoom'
 import { DEFAULT_SETTINGS } from '../settings'
 import CorrectionBar from './CorrectionBar'
@@ -58,8 +59,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
   const [tool, setTool] = useState('pen')
   const [penColor, setPenColor] = useState(PEN_COLORS[0])
   const [highlighterColor, setHighlighterColor] = useState(HIGHLIGHTER_COLORS[0])
-  const [penSize, setPenSize] = useState('normal')
-  const [highlighterSize, setHighlighterSize] = useState('normal')
+  const [toolPrefs, setToolPrefs] = useState(loadToolPrefs) // { penWidth, highlighterWidth, eraserSize, eraserMode } — 이 기기에 기억
   const [showGuides, setShowGuides] = useState(() => loadFlag(GUIDES_KEY))
   const [showLines, setShowLines] = useState(false)
   const [saveState, setSaveState] = useState('saved')
@@ -234,7 +234,8 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
 
   function handleStrokesChange(pageIndex, next, info) {
     const before = pages[pageIndex].strokes
-    changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(p, next) : p)))
+    // 부분 지우개는 보정 글자(지운 자리)도 함께 바꿔서 넘긴다
+    changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(info?.corrections ? { ...p, corrections: info.corrections } : p, next) : p)))
     if (!info?.added || isHighlighter(info.added)) return
 
     // 새 획이 직전 줄에 이어지지 않으면(아래 왼쪽에서 시작 등) 직전 줄이 끝난 것
@@ -301,7 +302,12 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
 
   const tidied = pages.some((p) => p.strokes.some((s) => s.transform))
   const isHl = tool === 'highlighter'
-  const strokeWidth = isHl ? HIGHLIGHTER_SIZES[highlighterSize] : PEN_SIZES[penSize]
+  const strokeWidth = isHl ? toolPrefs.highlighterWidth : toolPrefs.penWidth
+  const changePref = (key, value) => setToolPrefs((p) => {
+    const next = { ...p, [key]: value }
+    saveToolPrefs(next)
+    return next
+  })
   const pageWidth = Math.max(240, Math.round(baseWidth * zoom))
   const scale = pageWidth / 1000
   const barCorrection = bar?.mode === 'suggest' ? bar.correction
@@ -343,8 +349,8 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         onPenColor={setPenColor}
         highlighterColor={highlighterColor}
         onHighlighterColor={setHighlighterColor}
-        size={isHl ? highlighterSize : penSize}
-        onSize={isHl ? setHighlighterSize : setPenSize}
+        prefs={toolPrefs}
+        onPref={changePref}
         showGuides={showGuides}
         onToggleGuides={toggleGuides}
         showLines={showLines}
@@ -373,6 +379,8 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
                   tool={tool}
                   color={isHl ? highlighterColor : penColor}
                   width={strokeWidth}
+                  eraserSize={toolPrefs.eraserSize}
+                  eraserMode={toolPrefs.eraserMode}
                   showGuides={showGuides}
                   lines={linesByPage[i]}
                   showLines={showLines}

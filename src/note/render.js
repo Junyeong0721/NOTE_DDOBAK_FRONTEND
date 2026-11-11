@@ -13,6 +13,8 @@ const DRAWING_COLOR = '#d32f2f'
 /** 필압 0.5에서 기본 굵기, 세게 누를수록 굵게 */
 export const strokeLineWidth = (width, pressure, scale) => width * (0.4 + 1.2 * pressure) * scale
 
+const THIN_PATH_PX = 2.5 // 가장 세게 눌러도 이보다 가늘면 한 경로로 그린다
+
 // 형광펜: 한 경로로 한 번에 그려야 겹치는 구간이 진해지지 않는다. 필압과 상관없이 고정 굵기.
 function drawHighlighter(ctx, pts, stroke, scale) {
   ctx.save()
@@ -52,6 +54,23 @@ export function drawStroke(ctx, stroke, scale) {
     ctx.beginPath()
     ctx.arc(x * scale, y * scale, strokeLineWidth(stroke.width, p, scale) / 2, 0, Math.PI * 2)
     ctx.fill()
+    return
+  }
+
+  // 아주 가는 선은 구간마다 따로 그리면 이음새가 겹쳐 점선처럼 보이므로 한 경로로 그린다 (필압은 평균)
+  if (strokeLineWidth(stroke.width, 1, scale) < THIN_PATH_PX) {
+    const avg = pts.reduce((t, p) => t + p[2], 0) / pts.length
+    ctx.lineWidth = strokeLineWidth(stroke.width, avg, scale)
+    ctx.beginPath()
+    ctx.moveTo(pts[0][0] * scale, pts[0][1] * scale)
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1]
+      const [x1, y1] = pts[i]
+      ctx.quadraticCurveTo(x0 * scale, y0 * scale, ((x0 + x1) / 2) * scale, ((y0 + y1) / 2) * scale)
+    }
+    const last = pts[pts.length - 1]
+    ctx.lineTo(last[0] * scale, last[1] * scale)
+    ctx.stroke()
     return
   }
 
@@ -177,6 +196,10 @@ function drawGlyphs(ctx, glyphs, scale) {
   for (const g of glyphs) {
     const family = fontFamily(g.fontId)
     const px = linePx.get(g.group)
+    if (g.cuts?.length && typeof document !== 'undefined') {
+      drawCutGlyph(ctx, g, px, family, scale)
+      continue
+    }
     ctx.font = `${px}px ${family}, sans-serif`
     const m = ctx.measureText(g.ch)
     ctx.fillStyle = g.color
@@ -186,6 +209,48 @@ function drawGlyphs(ctx, glyphs, scale) {
     const shift = Number.isFinite(asc) && Number.isFinite(desc) ? (asc - desc) / 2 : px * 0.35
     ctx.fillText(g.ch, g.x * scale, g.y * scale + shift)
   }
+  ctx.restore()
+}
+
+/**
+ * 지우개로 일부를 지운 보정 글자: 작은 캔버스에 글자를 그리고 지운 자리를 뚫은 뒤 옮겨 그린다.
+ * (페이지에 바로 뚫으면 글자 밑의 형광펜까지 지워지므로)
+ */
+function drawCutGlyph(ctx, g, px, family, scale) {
+  const dpr = ctx.getTransform?.().a || 1
+  const side = Math.ceil(px * 1.8)
+  const off = document.createElement('canvas')
+  off.width = Math.ceil(side * dpr)
+  off.height = Math.ceil(side * dpr)
+  const o = off.getContext('2d')
+  o.scale(dpr, dpr)
+  o.font = `${px}px ${family}, sans-serif`
+  o.textAlign = 'center'
+  o.textBaseline = 'alphabetic'
+  const m = o.measureText(g.ch)
+  const shift = Number.isFinite(m.actualBoundingBoxAscent) ? (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 : px * 0.35
+  o.fillStyle = g.color
+  o.fillText(g.ch, side / 2, side / 2 + shift)
+  o.globalCompositeOperation = 'destination-out'
+  const unit = g.size * scale // 지운 자리 좌표는 글자 크기 기준
+  for (const c of g.cuts) {
+    o.beginPath()
+    o.arc(side / 2 + c.dx * unit, side / 2 + c.dy * unit, c.r * unit, 0, Math.PI * 2)
+    o.fill()
+  }
+  ctx.drawImage(off, g.x * scale - side / 2, g.y * scale - side / 2, side, side)
+}
+
+/** 지우개 크기를 보여 주는 동그라미 */
+function drawEraserCursor(ctx, { x, y, r }, scale) {
+  ctx.save()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = 'rgba(31, 42, 68, 0.55)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)'
+  ctx.beginPath()
+  ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
   ctx.restore()
 }
 
@@ -210,7 +275,7 @@ function drawLasso(ctx, path, scale) {
 export function drawPage(ctx, {
   strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
   activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
-  corrections = null, focusBox = null, fontId = null,
+  corrections = null, focusBox = null, fontId = null, eraserCursor = null,
 }) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
@@ -230,4 +295,5 @@ export function drawPage(ctx, {
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
   if (selectionBox) drawSelection(ctx, selectionBox, scale)
   if (lassoPath) drawLasso(ctx, lassoPath, scale)
+  if (eraserCursor) drawEraserCursor(ctx, eraserCursor, scale)
 }

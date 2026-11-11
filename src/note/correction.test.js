@@ -90,7 +90,8 @@ describe('correctionGlyphs', () => {
 
   it('places glyphs on one straight line with one size and one width limit for the line', () => {
     const [g1, g2] = correctionGlyphs(strokes, cs)
-    expect(g1).toEqual({ ch: '가', x: 105, y: 70, size: 40 * GLYPH_SCALE, maxWidth: 45 * SLOT_FILL, color: '#2563eb', fontId: 'gowun-dodum', group: 'c1', shared: true })
+    expect(g1).toEqual({ ch: '가', x: 105, y: 70, size: 40 * GLYPH_SCALE, maxWidth: 45 * SLOT_FILL, color: '#2563eb', fontId: 'gowun-dodum', group: 'c1', shared: true,
+      ref: { cid: 'c1', index: 0 }, cuts: null })
     expect(g2.x).toBe(150)
     expect(g2.y).toBe(70)
     expect(g2.maxWidth).toBe(g1.maxWidth)

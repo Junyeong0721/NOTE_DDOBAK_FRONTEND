@@ -137,20 +137,74 @@
   border-radius: 7px;
 }
 
-.size {
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
+/* 굵기·지우개 크기 슬라이더 */
+.size-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.size.selected {
-  border-color: var(--line-strong);
+.size-preview {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: none;
 }
 
 .size-dot {
   border-radius: 50%;
+}
+
+.eraser-dot {
+  border: 1.5px solid var(--ink-2);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.size-slider input[type='range'] {
+  width: 140px;
+  height: 28px;
+  margin: 0;
+  accent-color: var(--ink);
+  touch-action: none; /* iPad에서 손가락으로 밀 때 화면이 같이 움직이지 않게 */
+}
+
+.size-value {
+  min-width: 2.2em;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 지우개 방식: 지나간 부분 / 획 전체 */
+.segmented {
+  gap: 0;
+}
+
+.segmented button {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.segmented button:first-child {
+  border-radius: var(--r-btn) 0 0 var(--r-btn);
+}
+
+.segmented button:last-child {
+  border-radius: 0 var(--r-btn) var(--r-btn) 0;
+  border-left: none;
+}
+
+.segmented button.selected {
+  background: rgba(255, 216, 77, 0.55);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 /* ---------- 페이지 영역 ---------- */
