@@ -5,12 +5,13 @@ import { eraseAlong } from '../note/erase'
 import { eraseGlyphs, glyphHit } from '../note/glyphErase'
 import { ensureFont } from '../note/fonts'
 import { clientToPage, hitStroke } from '../note/geometry'
-import { moveStrokes, selectStrokes, selectionBBox } from '../note/lasso'
-import { drawPage } from '../note/render'
+import { handleAt, moveStrokes, resizeFactor, resizeStrokes, selectStrokes, selectionBBox } from '../note/lasso'
+import { SELECTION_PAD, drawPage } from '../note/render'
 import { effectiveDpr, pinchDistance } from '../note/zoom'
 
 const PALM_GUARD_MS = 1500 // 펜을 쓴 직후 손바닥 터치로 화면이 밀리지 않게
 const SELECTION_GRAB_PAD = 14 // 선택 상자 주변 이만큼은 "잡아서 옮기기"로 본다
+const HANDLE_GRAB = 20 // 모서리 손잡이를 이만큼(페이지 좌표) 안에서 누르면 크기 바꾸기
 const LASSO_STEP = 3 // 올가미 점 간격(페이지 좌표)
 
 const inside = (pt, box, pad) => pt.x >= box.minX - pad && pt.x <= box.maxX + pad && pt.y >= box.minY - pad && pt.y <= box.maxY + pad
@@ -48,6 +49,7 @@ export default function NoteCanvas({
     const v = viewRef.current
     const active = activeRef.current
     const view = active?.mode === 'move' ? moveStrokes(v.strokes, v.selectionIds, active.dx, active.dy)
+      : active?.mode === 'resize' ? resizeStrokes(v.strokes, v.selectionIds, active.anchor, active.k)
       : active?.mode === 'erase-part' ? active.work
         : v.strokes
     const cursorPt = v.tool === 'eraser' ? (active?.last ?? hoverRef.current) : null
@@ -186,7 +188,10 @@ export default function NoteCanvas({
       eraseAt(activeRef.current, pt)
     } else if (tool === 'lasso') {
       const box = v.selectionIds?.length ? selectionBBox(v.strokes, v.selectionIds) : null
-      if (box && inside(pt, box, SELECTION_GRAB_PAD)) {
+      const handle = box ? handleAt(box, pt, SELECTION_PAD, HANDLE_GRAB) : null
+      if (handle) {
+        activeRef.current = { pointerId: e.pointerId, mode: 'resize', anchor: handle.anchor, start: pt, k: 1 }
+      } else if (box && inside(pt, box, SELECTION_GRAB_PAD)) {
         activeRef.current = { pointerId: e.pointerId, mode: 'move', start: pt, dx: 0, dy: 0 }
       } else {
         if (v.selectionIds?.length) onSelectionChange?.([])
@@ -241,6 +246,8 @@ export default function NoteCanvas({
       } else if (active.mode === 'lasso') {
         const [lx, ly] = active.path[active.path.length - 1]
         if (Math.hypot(pt.x - lx, pt.y - ly) >= LASSO_STEP) active.path.push([pt.x, pt.y])
+      } else if (active.mode === 'resize') {
+        active.k = resizeFactor(active.anchor, active.start, pt)
       } else if (active.mode === 'move') {
         active.dx = pt.x - active.start.x
         active.dy = pt.y - active.start.y
@@ -272,6 +279,12 @@ export default function NoteCanvas({
     } else if (active.mode === 'lasso') {
       onSelectionChange?.(selectStrokes(v.strokes, active.path))
       scheduleRedraw()
+    } else if (active.mode === 'resize') {
+      if (Math.abs(active.k - 1) > 0.01) {
+        onStrokesChange(resizeStrokes(v.strokes, v.selectionIds, active.anchor, active.k), { moved: v.selectionIds, resized: true })
+      } else {
+        scheduleRedraw()
+      }
     } else if (active.mode === 'move') {
       if (Math.abs(active.dx) + Math.abs(active.dy) > 0.5) {
         onStrokesChange(moveStrokes(v.strokes, v.selectionIds, active.dx, active.dy), { moved: v.selectionIds })
