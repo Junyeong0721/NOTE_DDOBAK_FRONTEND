@@ -23,7 +23,7 @@ export default function CorrectionBar({ bar, correction, fontId, onApply, onTogg
       <div className="correction-bar" role="dialog" aria-label="보정안">
         <span className="correction-label">보정안</span>
         <span className="correction-preview" style={{ fontFamily: family }}>
-          {correction.chars.map((c) => c.ch).join('')}
+          {correction.chars.map((c, i) => (c.sp && i > 0 ? ` ${c.ch}` : c.ch)).join('')}
         </span>
         <button type="button" className="btn-primary" onClick={onApply}>바꾸기</button>
         <button type="button" onClick={onClose}>닫기</button>

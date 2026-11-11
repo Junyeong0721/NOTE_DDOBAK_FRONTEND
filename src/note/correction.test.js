@@ -33,6 +33,17 @@ describe('buildCorrection', () => {
     expect(c.chars[0].strokeIds).toEqual(['a1', 'x'])
   })
 
+  it('assigns strokes by height too, so a selection of two lines keeps two lines', () => {
+    // 이미지 y 0~60 → 페이지 40~70 (윗줄), y 100~160 → 페이지 90~120 (아랫줄). 두 줄의 x가 겹친다
+    const two = [st('u', 100, 45, 115, 65), st('d', 100, 95, 115, 115)]
+    const result = { engine: 'google-vision', text: '가\n나', chars: [
+      { ch: '나', x: 20, y: 100, w: 40, h: 60, confidence: 0.9 },
+      { ch: '가', x: 20, y: 0, w: 40, h: 60, confidence: 0.9 },
+    ] }
+    const c = buildCorrection({ ocr: result, origin, strokes: two, fontId: 'f' })
+    expect(c.chars.map((x) => `${x.ch}:${x.strokeIds}`)).toEqual(['가:u', '나:d']) // 윗줄 먼저
+  })
+
   it('remembers where the recognized text had a space', () => {
     const strokes = [st('a', 100, 50, 110, 50), st('b', 135, 50, 145, 50), st('c', 165, 50, 170, 50)]
     const result = { engine: 'google-vision', text: '가나 다', chars: [box('가', 20, 40), box('나', 80, 40), box('다', 140, 20)] }
@@ -131,10 +142,36 @@ describe('correctionGlyphs', () => {
     expect(g1.y).toBe(65)
   })
 
-  it('fits a straight line through the characters of a slanted line', () => {
+  it('puts a slightly slanted line on one level line', () => {
     const slanted = [st('a1', 100, 50, 110, 90), st('b1', 140, 60, 160, 100), st('c1', 190, 70, 210, 110)]
     const g = correctionGlyphs(slanted, [corr([{ ch: '가', strokeIds: ['a1'] }, { ch: '나', strokeIds: ['b1'] }, { ch: '다', strokeIds: ['c1'] }])])
-    expect(g.map((x) => Math.round(x.y))).toEqual([70, 80, 90])
+    expect(g.map((x) => x.y)).toEqual([80, 80, 80])
+  })
+
+  it('keeps two written lines as two lines even inside one correction', () => {
+    // 윗줄 가나(y 50~90), 아랫줄 다라마(y 150~190)
+    const two = [st('a', 100, 50, 110, 90), st('b', 140, 50, 150, 90), st('c', 100, 150, 110, 190), st('d', 140, 150, 150, 190), st('e', 180, 150, 190, 190)]
+    const c = [corr(['가', '나', '다', '라', '마'].map((ch, i) => ({ ch, strokeIds: [['a', 'b', 'c', 'd', 'e'][i]] })))]
+    const g = correctionGlyphs(two, c)
+    expect(g.map((x) => `${x.ch}${x.y}`)).toEqual(['가70', '나70', '다170', '라170', '마170'])
+    expect(g[0].size).toBe(40 * GLYPH_SCALE) // 두 줄 전체 높이가 아니라 한 줄 높이
+    expect(new Set(g.map((x) => x.group)).size).toBe(2)
+  })
+
+  it('lines up the left edges of lines that start at about the same place', () => {
+    // 첫 글자 왼쪽 끝: 100, 112(→100으로), 300(멀어서 그대로)
+    const rows = [
+      st('a', 100, 50, 110, 90), st('b', 140, 50, 150, 90),
+      st('c', 112, 150, 122, 190), st('d', 152, 150, 162, 190),
+      st('e', 300, 250, 310, 290), st('f', 340, 250, 350, 290),
+    ]
+    const cs3 = [
+      corr([{ ch: '가', strokeIds: ['a'] }, { ch: '나', strokeIds: ['b'] }], 'r1'),
+      corr([{ ch: '다', strokeIds: ['c'] }, { ch: '라', strokeIds: ['d'] }], 'r2'),
+      corr([{ ch: '마', strokeIds: ['e'] }, { ch: '바', strokeIds: ['f'] }], 'r3'),
+    ]
+    const xs = correctionGlyphs(rows, cs3).map((g) => g.x)
+    expect(xs).toEqual([105, 145, 105, 145, 305, 345])
   })
 
   it('has no width limit for a single character', () => {
