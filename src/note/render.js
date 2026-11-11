@@ -1,5 +1,7 @@
 // 페이지를 캔버스에 그린다. 좌표는 페이지 단위이고 scale(= 화면 너비 / 1000)을 곱해 그린다.
 import { PAGE_HEIGHT, PAGE_WIDTH } from './content'
+import { correctedStrokeIds, correctionGlyphs } from './correction'
+import { fontFamily } from './fonts'
 import { strokeBBox, strokePoints } from './geometry'
 import { HIGHLIGHTER_ALPHA, isHighlighter } from './tools'
 
@@ -122,6 +124,31 @@ function drawSelection(ctx, box, scale) {
   ctx.restore()
 }
 
+const FOCUS_COLOR = '#e0a800' // 보정안 대상 줄 (노란 형광펜 계열)
+
+function drawFocus(ctx, box, scale) {
+  ctx.save()
+  ctx.strokeStyle = FOCUS_COLOR
+  ctx.lineWidth = 2
+  ctx.setLineDash([8, 5])
+  const pad = 10
+  ctx.strokeRect((box.minX - pad) * scale, (box.minY - pad) * scale, (box.maxX - box.minX + pad * 2) * scale, (box.maxY - box.minY + pad * 2) * scale)
+  ctx.restore()
+}
+
+/** 보정 글자: 원래 획 대신 목표 글씨체로 그린다 */
+function drawGlyphs(ctx, glyphs, scale) {
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const g of glyphs) {
+    ctx.font = `${g.size * scale}px ${fontFamily(g.fontId)}, sans-serif`
+    ctx.fillStyle = g.color
+    ctx.fillText(g.ch, g.x * scale, g.y * scale)
+  }
+  ctx.restore()
+}
+
 function drawLasso(ctx, path, scale) {
   if (path.length < 2) return
   ctx.save()
@@ -135,22 +162,30 @@ function drawLasso(ctx, path, scale) {
   ctx.restore()
 }
 
-/** 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획 */
+/**
+ * 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획.
+ * hiddenIds: 지우개로 지우는 중인 획, corrections: 글씨 보정(보정된 글자의 원래 획은 숨기고 글씨체로 그림)
+ */
 export function drawPage(ctx, {
   strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
   activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
+  corrections = null, focusBox = null,
 }) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   if (showGuides) drawGuides(ctx, scale)
-  const visible = strokes.filter((s) => !hiddenIds || !hiddenIds.has(s.id))
+  const present = hiddenIds ? strokes.filter((s) => !hiddenIds.has(s.id)) : strokes
+  const corrected = correctedStrokeIds(corrections)
+  const visible = corrected.size ? present.filter((s) => !corrected.has(s.id)) : present
   // 형광펜을 먼저(아래), 펜을 나중에(위) 그린다
   const activeIsHighlighter = activeStroke && isHighlighter(activeStroke)
   for (const s of visible) if (isHighlighter(s)) drawStroke(ctx, s, scale)
   if (activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   for (const s of visible) if (!isHighlighter(s)) drawStroke(ctx, s, scale)
+  drawGlyphs(ctx, correctionGlyphs(present, corrections), scale)
   if (activeStroke && !activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
+  if (focusBox) drawFocus(ctx, focusBox, scale)
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
   if (selectionBox) drawSelection(ctx, selectionBox, scale)
   if (lassoPath) drawLasso(ctx, lassoPath, scale)

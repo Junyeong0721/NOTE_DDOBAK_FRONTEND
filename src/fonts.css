@@ -1,0 +1,6 @@
+/* 목표 글씨체 (src/note/fonts.js의 fontFamily와 이름이 같아야 한다). 쓰일 때만 내려받는다. */
+@font-face { font-family: 'ddobak-gowun-dodum'; src: url('/fonts/gowun-dodum.woff') format('woff'); font-display: swap; }
+@font-face { font-family: 'ddobak-nanum-pen-script'; src: url('/fonts/nanum-pen-script.woff') format('woff'); font-display: swap; }
+@font-face { font-family: 'ddobak-hi-melody'; src: url('/fonts/hi-melody.woff') format('woff'); font-display: swap; }
+@font-face { font-family: 'ddobak-gamja-flower'; src: url('/fonts/gamja-flower.woff') format('woff'); font-display: swap; }
+@font-face { font-family: 'ddobak-poor-story'; src: url('/fonts/poor-story.woff') format('woff'); font-display: swap; }

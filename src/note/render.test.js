@@ -103,4 +103,24 @@ describe('render selection', () => {
     expect(ctx.calls.filter(([k]) => k === 'lineTo').length).toBeGreaterThanOrEqual(2)
     expect(ctx.calls.some(([k]) => k === 'setLineDash')).toBe(true)
   })
+
+  it('hides corrected strokes and draws the target-font glyph in their place', () => {
+    const ctx = fakeCtx()
+    const a = stroke([[100, 50, 0.5, 0], [110, 90, 0.5, 10]], { id: 'a', color: '#2563eb' })
+    const b = stroke([[300, 50, 0.5, 0], [310, 90, 0.5, 10]], { id: 'b', color: '#e5484d' })
+    const corrections = [{ id: 'c1', fontId: 'hi-melody', chars: [{ ch: '가', strokeIds: ['a'] }] }]
+    drawPage(ctx, { strokes: [a, b], scale: 2, corrections })
+    const strokeColors = ctx.calls.filter(([k]) => k === 'set:strokeStyle').map(([, v]) => v)
+    expect(strokeColors).toContain('#e5484d')
+    expect(strokeColors).not.toContain('#2563eb')
+    const text = ctx.calls.find(([k]) => k === 'fillText')
+    expect(text.slice(1)).toEqual(['가', 210, 140])
+    expect(ctx.calls.some(([k, v]) => k === 'set:font' && v.includes('"ddobak-hi-melody"'))).toBe(true)
+  })
+
+  it('draws the suggestion box when asked', () => {
+    const ctx = fakeCtx()
+    drawPage(ctx, { strokes: [], scale: 1, focusBox: { minX: 10, minY: 10, maxX: 50, maxY: 30 } })
+    expect(ctx.calls.some(([k]) => k === 'strokeRect')).toBe(true)
+  })
 })
