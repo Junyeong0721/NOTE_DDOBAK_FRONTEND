@@ -14,11 +14,11 @@ describe('content', () => {
   it('fills the default page size for week-1 notes', () => {
     const c = parseContent('{"version":1,"pages":[{"strokes":[]}]}')
     expect(c.page).toEqual({ width: 1000, height: 1414 })
-    expect(c.pages).toEqual([{ strokes: [] }])
+    expect(c.pages).toEqual([{ strokes: [], corrections: [] }])
   })
 
   it('adds one empty page when pages is empty', () => {
-    expect(parseContent('{"version":1,"pages":[]}').pages).toEqual([{ strokes: [] }])
+    expect(parseContent('{"version":1,"pages":[]}').pages).toEqual([{ strokes: [], corrections: [] }])
   })
 
   it('throws a readable error for non-JSON', () => {
@@ -49,5 +49,14 @@ describe('content', () => {
     const s0 = createStroke({ t0: 0, color: '#222222', width: 2.4 })
     expect(addPoint(s0, { x: 1, y: 1, pressure: 0, t: 0 }).points[0][2]).toBe(0.5)
     expect(addPoint(s0, { x: 1, y: 1, t: 0 }).points[0][2]).toBe(0.5)
+  })
+
+  it('keeps corrections on each page and defaults them to an empty list', () => {
+    const corrections = [{ id: 'c1', fontId: 'gowun-dodum', chars: [{ ch: '가', strokeIds: ['s1'] }] }]
+    const text = JSON.stringify({ version: 1, pages: [{ strokes: [], corrections }, { strokes: [] }, { strokes: [], corrections: 'bad' }] })
+    const { pages } = parseContent(text)
+    expect(pages[0].corrections).toEqual(corrections)
+    expect(pages[1].corrections).toEqual([])
+    expect(pages[2].corrections).toEqual([])
   })
 })
