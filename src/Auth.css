@@ -311,6 +311,7 @@
 }
 
 .field-error { color: var(--danger); }
+.field-ok { margin: 0; font-size: 13px; color: #15803d; }
 .field-hint { color: var(--ink-3); }
 
 .auth-error {

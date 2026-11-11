@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { login, signup } from '../api/auth'
-import { validateLogin, validateSignup } from '../auth/validate'
+import { passwordMatch, validateLogin, validateSignup } from '../auth/validate'
 import { BackIcon } from './Icons'
 import Logo from './Logo'
 
-function Field({ id, label, hint, error, children }) {
+function Field({ id, label, hint, ok, error, children }) {
   return (
     <div className="auth-field">
       <label htmlFor={id}>{label}</label>
       {children}
-      {error ? <p className="field-error" id={`${id}-error`}>{error}</p> : hint && <p className="field-hint">{hint}</p>}
+      {error ? <p className="field-error" id={`${id}-error`}>{error}</p>
+        : ok ? <p className="field-ok" id={`${id}-ok`}>{ok}</p>
+          : hint && <p className="field-hint">{hint}</p>}
     </div>
   )
 }
@@ -17,11 +19,12 @@ function Field({ id, label, hint, error, children }) {
 /** 로그인 / 회원가입. 바인더 인덱스 탭으로 오간다. 소셜 로그인 버튼은 고정 주소를 만든 뒤 연결한다 */
 export default function AuthScreen({ mode, onMode, onBack, onDone }) {
   const isSignup = mode === 'signup'
-  const [form, setForm] = useState({ email: '', password: '', nickname: '' })
+  const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '', nickname: '' })
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [confirmLeft, setConfirmLeft] = useState(false) // 비밀번호 확인 칸에서 한 번 나갔는지
   const emailRef = useRef(null)
 
   useEffect(() => {
@@ -33,7 +36,12 @@ export default function AuthScreen({ mode, onMode, onBack, onDone }) {
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }))
     if (errors[key]) setErrors((x) => ({ ...x, [key]: undefined }))
+    if (key === 'password' && errors.passwordConfirm) setErrors((x) => ({ ...x, passwordConfirm: undefined }))
   }
+
+  // 비밀번호 확인: 같으면 바로 알려 주고, 다르다는 말은 다 쳤거나(길이가 같아짐) 칸을 나간 뒤에만 (쓰는 중에 재촉하지 않게)
+  const match = passwordMatch(form.password, form.passwordConfirm)
+  const showMismatch = match === false && (confirmLeft || form.passwordConfirm.length >= form.password.length)
 
   async function submit(e) {
     e.preventDefault()
@@ -82,6 +90,25 @@ export default function AuthScreen({ mode, onMode, onBack, onDone }) {
               </button>
             </span>
           </Field>
+          {isSignup && (
+            <Field
+              id="passwordConfirm"
+              label="비밀번호 확인"
+              error={errors.passwordConfirm ?? (showMismatch ? '비밀번호가 서로 달라요.' : null)}
+              ok={match ? '비밀번호가 같아요.' : null}
+            >
+              <input
+                id="passwordConfirm"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={form.passwordConfirm}
+                onChange={set('passwordConfirm')}
+                onBlur={() => setConfirmLeft(true)}
+                aria-invalid={Boolean(errors.passwordConfirm) || showMismatch}
+                aria-describedby={errors.passwordConfirm || showMismatch ? 'passwordConfirm-error' : match ? 'passwordConfirm-ok' : undefined}
+              />
+            </Field>
+          )}
           {isSignup && (
             <Field id="nickname" label="닉네임" hint="홈 화면에서 이 이름으로 불러 드려요" error={errors.nickname}>
               <input id="nickname" autoComplete="nickname" maxLength={20} value={form.nickname} onChange={set('nickname')} aria-invalid={Boolean(errors.nickname)} aria-describedby={describedBy('nickname')} />
