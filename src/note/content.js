@@ -15,8 +15,11 @@ export function parseContent(text) {
     throw new Error('필기 데이터를 읽을 수 없습니다.')
   }
   const pages = Array.isArray(raw?.pages) && raw.pages.length > 0
-    ? raw.pages.map((p) => ({ strokes: Array.isArray(p?.strokes) ? p.strokes : [] }))
-    : [{ strokes: [] }]
+    ? raw.pages.map((p) => ({
+      strokes: Array.isArray(p?.strokes) ? p.strokes : [],
+      corrections: Array.isArray(p?.corrections) ? p.corrections : [], // 글씨 보정 (correction.js)
+    }))
+    : [{ strokes: [], corrections: [] }]
   return { version: raw?.version ?? 1, page: raw?.page ?? { ...DEFAULT_PAGE }, pages }
 }
 

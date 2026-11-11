@@ -3,10 +3,12 @@ import { FOLDER_COLORS, createFolder, deleteFolder, listFolders, updateFolder } 
 import { EMPTY_CONTENT, createNote, deleteNote, listNotes, moveNoteToFolder } from './api/notes'
 import FolderDialog from './components/FolderDialog'
 import FolderSidebar from './components/FolderSidebar'
-import { EditIcon, PlusIcon, SearchIcon } from './components/Icons'
+import { EditIcon, PlusIcon, SearchIcon, SettingsIcon } from './components/Icons'
 import NoteEditor from './components/NoteEditor'
 import NoteGrid from './components/NoteGrid'
+import SettingsDialog from './components/SettingsDialog'
 import { ALL, UNFILED, countByFolder, filterNotes } from './note/filterNotes'
+import { loadSettings, saveSettings } from './settings'
 import './App.css'
 
 function emptyMessage({ selected, query, total }) {
@@ -25,6 +27,13 @@ function App() {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(null) // { id, folderId }
   const [dialog, setDialog] = useState(null) // { folder } | { folder: null }
+  const [settings, setSettings] = useState(loadSettings) // { fontId, autoSuggest } — 이 기기에 저장
+  const [showSettings, setShowSettings] = useState(false)
+
+  const changeSettings = useCallback((next) => {
+    setSettings(next)
+    saveSettings(next)
+  }, [])
 
   const refresh = useCallback(async () => {
     try {
@@ -104,6 +113,7 @@ function App() {
     return (
       <NoteEditor
         noteId={open.id}
+        settings={settings}
         folder={folders.find((f) => f.id === open.folderId) ?? null}
         onBack={() => {
           setOpen(null)
@@ -141,6 +151,9 @@ function App() {
               <SearchIcon />
               <input type="search" value={query} placeholder="노트 제목 검색" aria-label="노트 제목 검색" onChange={(e) => setQuery(e.target.value)} />
             </label>
+            <button type="button" className="btn-quiet icon-btn" aria-label="설정" title="설정" onClick={() => setShowSettings(true)}>
+              <SettingsIcon />
+            </button>
             <button type="button" className="btn-primary" onClick={handleCreate}>
               <PlusIcon /> 새 노트
             </button>
@@ -161,6 +174,7 @@ function App() {
           />
         )}
       </main>
+      {showSettings && <SettingsDialog settings={settings} onChange={changeSettings} onClose={() => setShowSettings(false)} />}
       {dialog && <FolderDialog folder={dialog.folder} onSave={saveFolder} onDelete={removeFolder} onClose={() => setDialog(null)} />}
     </div>
   )

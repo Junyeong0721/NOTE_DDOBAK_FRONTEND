@@ -1,4 +1,5 @@
 // 한 줄의 획을 흰 배경 PNG로 그려 OCR에 보낸다. 사용자가 보는 모습(정리 transform 적용) 그대로 그린다.
+// origin { minX, minY, fit }: 인식 결과의 이미지 좌표를 페이지 좌표로 되돌릴 때 쓴다 (페이지 x = minX + 이미지 x / fit)
 import { strokeBBox } from './geometry'
 import { drawStroke } from './render'
 
@@ -24,5 +25,5 @@ export function renderLineToPng(strokes, { padding = 12, scale = 2 } = {}) {
   for (const s of strokes) drawStroke(ctx, { ...s, color: '#000000' }, fit)
 
   const dataUrl = canvas.toDataURL('image/png')
-  return { imageBase64: dataUrl.slice(dataUrl.indexOf(',') + 1), width, height }
+  return { imageBase64: dataUrl.slice(dataUrl.indexOf(',') + 1), width, height, origin: { minX, minY, fit } }
 }

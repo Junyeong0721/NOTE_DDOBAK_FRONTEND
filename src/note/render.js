@@ -1,5 +1,7 @@
 // 페이지를 캔버스에 그린다. 좌표는 페이지 단위이고 scale(= 화면 너비 / 1000)을 곱해 그린다.
 import { PAGE_HEIGHT, PAGE_WIDTH } from './content'
+import { correctedStrokeIds, correctionGlyphs } from './correction'
+import { fontFamily } from './fonts'
 import { strokeBBox, strokePoints } from './geometry'
 import { HIGHLIGHTER_ALPHA, isHighlighter } from './tools'
 
@@ -122,6 +124,59 @@ function drawSelection(ctx, box, scale) {
   ctx.restore()
 }
 
+const FOCUS_COLOR = '#e0a800' // 보정안 대상 줄 (노란 형광펜 계열)
+
+function drawFocus(ctx, box, scale) {
+  ctx.save()
+  ctx.strokeStyle = FOCUS_COLOR
+  ctx.lineWidth = 2
+  ctx.setLineDash([8, 5])
+  const pad = 10
+  ctx.strokeRect((box.minX - pad) * scale, (box.minY - pad) * scale, (box.maxX - box.minX + pad * 2) * scale, (box.maxY - box.minY + pad * 2) * scale)
+  ctx.restore()
+}
+
+// 글꼴마다 한글이 글꼴 칸(em) 안에서 차지하는 높이가 달라서(하이멜로디 '가'는 0.45em, 고운돋움은 0.85em),
+// 기준 글자 '가'의 실제 높이로 크기를 맞춘다. 글꼴을 다 받은 뒤 잰 값만 기억한다.
+const FALLBACK_RATIO = 0.8
+const ratioCache = new Map()
+
+function hangulRatio(ctx, family) {
+  if (ratioCache.has(family)) return ratioCache.get(family)
+  ctx.font = `100px ${family}`
+  const m = ctx.measureText('가')
+  const ratio = (m?.actualBoundingBoxAscent + m?.actualBoundingBoxDescent) / 100
+  if (!(ratio > 0.2)) return FALLBACK_RATIO
+  if (typeof document !== 'undefined' && document.fonts?.check(`100px ${family}`)) ratioCache.set(family, ratio)
+  return ratio
+}
+
+/** 보정 글자: 원래 획 대신 목표 글씨체로 그린다. size = '가' 같은 보통 글자의 실제 높이 */
+function drawGlyphs(ctx, glyphs, scale) {
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  for (const g of glyphs) {
+    const family = fontFamily(g.fontId)
+    let px = (g.size * scale) / hangulRatio(ctx, family)
+    ctx.font = `${px}px ${family}, sans-serif`
+    let m = ctx.measureText(g.ch)
+    // 이웃 글자와 겹칠 만큼 넓으면 그만큼만 줄인다
+    if (g.maxWidth && m?.width > g.maxWidth * scale) {
+      px *= (g.maxWidth * scale) / m.width
+      ctx.font = `${px}px ${family}, sans-serif`
+      m = ctx.measureText(g.ch)
+    }
+    ctx.fillStyle = g.color
+    // 글자마다 실제 높이의 가운데를 g.y에 맞춘다 (기준선 = 가운데 + (위 - 아래) / 2)
+    const asc = m?.actualBoundingBoxAscent
+    const desc = m?.actualBoundingBoxDescent
+    const shift = Number.isFinite(asc) && Number.isFinite(desc) ? (asc - desc) / 2 : px * 0.35
+    ctx.fillText(g.ch, g.x * scale, g.y * scale + shift)
+  }
+  ctx.restore()
+}
+
 function drawLasso(ctx, path, scale) {
   if (path.length < 2) return
   ctx.save()
@@ -135,22 +190,30 @@ function drawLasso(ctx, path, scale) {
   ctx.restore()
 }
 
-/** 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획 */
+/**
+ * 페이지 전체를 다시 그린다. activeStroke는 지금 쓰고 있는(아직 저장 전) 획.
+ * hiddenIds: 지우개로 지우는 중인 획, corrections: 글씨 보정(보정된 글자의 원래 획은 숨기고 글씨체로 그림)
+ */
 export function drawPage(ctx, {
   strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
   activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
+  corrections = null, focusBox = null,
 }) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   if (showGuides) drawGuides(ctx, scale)
-  const visible = strokes.filter((s) => !hiddenIds || !hiddenIds.has(s.id))
+  const present = hiddenIds ? strokes.filter((s) => !hiddenIds.has(s.id)) : strokes
+  const corrected = correctedStrokeIds(corrections)
+  const visible = corrected.size ? present.filter((s) => !corrected.has(s.id)) : present
   // 형광펜을 먼저(아래), 펜을 나중에(위) 그린다
   const activeIsHighlighter = activeStroke && isHighlighter(activeStroke)
   for (const s of visible) if (isHighlighter(s)) drawStroke(ctx, s, scale)
   if (activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
   for (const s of visible) if (!isHighlighter(s)) drawStroke(ctx, s, scale)
+  drawGlyphs(ctx, correctionGlyphs(present, corrections), scale)
   if (activeStroke && !activeIsHighlighter) drawStroke(ctx, activeStroke, scale)
+  if (focusBox) drawFocus(ctx, focusBox, scale)
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
   if (selectionBox) drawSelection(ctx, selectionBox, scale)
   if (lassoPath) drawLasso(ctx, lassoPath, scale)

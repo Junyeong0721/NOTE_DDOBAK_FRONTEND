@@ -16,6 +16,6 @@ export function renderThumbnail(page) {
   canvas.height = height
   // 썸네일에서는 획이 너무 가늘어 보이지 않게 조금 굵게 그린다
   const strokes = page.strokes.map((s) => (s.tool === 'highlighter' ? s : { ...s, width: s.width * 2.4 }))
-  drawPage(canvas.getContext('2d'), { strokes, scale })
+  drawPage(canvas.getContext('2d'), { strokes, scale, corrections: page.corrections })
   return canvas.toDataURL('image/png')
 }
