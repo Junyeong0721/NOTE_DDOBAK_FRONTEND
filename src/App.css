@@ -376,6 +376,19 @@
 }
 
 /* ---------- 설정 ---------- */
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .settings-btn span {
+    display: none;
+  }
+}
+
 .settings-dialog {
   width: min(520px, 100%);
   max-height: calc(100dvh - 32px);

@@ -1,5 +1,5 @@
 import { HIGHLIGHTER_COLORS, PEN_COLORS } from '../note/tools'
-import { EraserIcon, GuidesIcon, HighlighterIcon, LassoIcon, LinesIcon, PenIcon, TidyIcon } from './Icons'
+import { EraserIcon, GuidesIcon, HighlighterIcon, LassoIcon, LinesIcon, PenIcon, TidyIcon, FontIcon } from './Icons'
 
 const TOOLS = [
   { key: 'pen', label: '펜', Icon: PenIcon },
@@ -15,7 +15,7 @@ const SIZES = [
 
 export default function ToolPalette({
   tool, onTool, penColor, onPenColor, highlighterColor, onHighlighterColor, size, onSize,
-  showGuides, onToggleGuides, showLines, onToggleLines, tidied, onTidy,
+  showGuides, onToggleGuides, showLines, onToggleLines, tidied, onTidy, onOpenSettings,
 }) {
   const drawing = tool === 'pen' || tool === 'highlighter'
   const colors = tool === 'highlighter' ? HIGHLIGHTER_COLORS : PEN_COLORS
@@ -73,6 +73,10 @@ export default function ToolPalette({
         <button type="button" className={`tool${showLines ? ' active' : ''}`} aria-pressed={showLines} onClick={onToggleLines}>
           <LinesIcon />
           <span>줄 보기</span>
+        </button>
+        <button type="button" className="tool" onClick={onOpenSettings}>
+          <FontIcon />
+          <span>글씨체</span>
         </button>
         <button type="button" className={`tool${tidied ? ' active' : ''}`} aria-pressed={tidied} onClick={onTidy}>
           <TidyIcon />
