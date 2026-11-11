@@ -142,7 +142,7 @@ function evenXs(chars, centers) {
 export const LEFT_ALIGN = 30
 
 /**
- * 그릴 보정 글자 목록: [{ ch, x, y(가운데), size(글자 실제 높이), maxWidth, color, fontId, group, shared }] — 페이지 좌표
+ * 그릴 보정 글자 목록: [{ ch, x, y(가운데), size(글자 실제 높이), maxWidth, color, fontId, group, shared, ref, cuts }] — 페이지 좌표
  * 균일하게:
  * - 쓴 줄 그대로: 한 보정 안에 두 줄이 있으면 두 줄로 (줄마다 따로 배치)
  * - 한 줄 안: 글자 간격·크기가 같고 수평인 기준선 하나
@@ -156,8 +156,9 @@ export function correctionGlyphs(strokes, corrections, options = {}) {
   for (const c of corrections) {
     // 원래대로 돌린 글자도 자리는 차지한다 (그 글자의 원래 획이 보이므로)
     const placed = c.chars
-      .filter((ch) => ch.strokeIds.length > 0 && ch.strokeIds.every((id) => byId.has(id)))
-      .map((ch) => ({ ch, box: boxOfIds(ch.strokeIds, byId) }))
+      .map((ch, index) => ({ ch, index }))
+      .filter(({ ch }) => ch.strokeIds.length > 0 && ch.strokeIds.every((id) => byId.has(id)))
+      .map(({ ch, index }) => ({ ch, index, box: boxOfIds(ch.strokeIds, byId) }))
     if (!placed.some((p) => !p.ch.off)) continue
     const split = splitRows(placed, (p) => ({ cy: (p.box.minY + p.box.maxY) / 2, h: p.box.maxY - p.box.minY, cx: centerX(p.box) }))
     split.forEach((row, k) => {
@@ -183,11 +184,12 @@ export function correctionGlyphs(strokes, corrections, options = {}) {
     const centers = row.map((p) => ({ x: centerX(p.box), y: (p.box.minY + p.box.maxY) / 2 }))
     const y = centers.reduce((t, p) => t + p.y, 0) / centers.length
     const { xs, step } = evenXs(row.map((p) => p.ch), centers)
-    row.forEach(({ ch }, i) => {
+    row.forEach(({ ch, index }, i) => {
       if (ch.off) return
       glyphs.push({
         ch: ch.ch, x: xs[i] + shift, y, size: shared ? common : size, maxWidth: step ? step * SLOT_FILL : null,
         color: byId.get(ch.strokeIds[0]).color, fontId: options.fontId ?? c.fontId, group, shared,
+        ref: { cid: c.id, index }, cuts: ch.cuts ?? null, // ref: 어느 보정의 몇 번째 글자, cuts: 지우개로 지운 자리
       })
     })
   }

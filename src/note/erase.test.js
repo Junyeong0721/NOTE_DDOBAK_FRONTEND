@@ -59,12 +59,12 @@ describe('eraseAlong (partial eraser)', () => {
     expect(strokes[0].points[0][1]).toBe(100) // 원래 좌표는 그대로
   })
 
-  it('removes whole corrected letters instead of cutting their hidden strokes', () => {
+  it('leaves hidden strokes of corrected letters alone (the letter itself is erased instead)', () => {
     const a = line('a', 0, 40)
-    const b = line('b', 0, 40, 120)
-    const c = line('c', 300, 400)
-    const groupOf = (id) => (id === 'a' || id === 'b' ? ['a', 'b'] : null)
-    const { strokes } = eraseAlong([a, b, c], { x: 20, y: 100 }, { x: 20, y: 100 }, 5, groupOf)
-    expect(strokes.map((s) => s.id)).toEqual(['c'])
+    const c = line('c', 0, 40, 120)
+    const strokes = [a, c]
+    const r = eraseAlong(strokes, { x: 20, y: 90 }, { x: 20, y: 130 }, 5, { skip: (id) => id === 'a' })
+    expect(r.strokes.map((s) => s.id.split('.')[0])).toEqual(['a', 'c', 'c'])
+    expect(r.strokes[0]).toBe(a)
   })
 })

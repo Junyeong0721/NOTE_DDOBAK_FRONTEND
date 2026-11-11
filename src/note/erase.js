@@ -33,13 +33,14 @@ const hits = (pt, a, b, radius) => distToSegment(pt[0], pt[1], [a.x, a.y], [b.x,
 
 /**
  * 지우개가 a → b로 지나갔을 때의 획 목록. 바뀐 게 없으면 같은 배열과 changed: false.
- * groupOf(id): 보정된 글자의 숨은 획이면 그 글자의 획 id 목록 → 자르지 않고 글자째 지운다.
+ * skip(id): 건드리지 않을 획 (보정된 글자의 숨은 획 — 글자 쪽을 지운다, glyphErase.js)
+ * groupOf(id): 자르지 않고 글자째 지울 획 묶음 (획 전체 지우개용)
  */
-export function eraseAlong(strokes, a, b, radius, groupOf = () => null) {
+export function eraseAlong(strokes, a, b, radius, { skip = () => false, groupOf = () => null } = {}) {
   const removeIds = new Set()
   const replaced = new Map() // 원래 id → 조각들
   for (const s of strokes) {
-    if (s.points.length === 0 || removeIds.has(s.id) || !nearSegment(s, a, b, radius)) continue
+    if (s.points.length === 0 || removeIds.has(s.id) || skip(s.id) || !nearSegment(s, a, b, radius)) continue
     const group = groupOf(s.id)
     const dense = s.points.length > 1 ? densify(s.points, Math.min(MAX_GAP, radius / 2)) : s.points
     const keep = dense.map((p) => !hits(applyTransform([p[0], p[1]], s.transform), a, b, radius))

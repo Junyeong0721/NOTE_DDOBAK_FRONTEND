@@ -196,6 +196,10 @@ function drawGlyphs(ctx, glyphs, scale) {
   for (const g of glyphs) {
     const family = fontFamily(g.fontId)
     const px = linePx.get(g.group)
+    if (g.cuts?.length && typeof document !== 'undefined') {
+      drawCutGlyph(ctx, g, px, family, scale)
+      continue
+    }
     ctx.font = `${px}px ${family}, sans-serif`
     const m = ctx.measureText(g.ch)
     ctx.fillStyle = g.color
@@ -206,6 +210,35 @@ function drawGlyphs(ctx, glyphs, scale) {
     ctx.fillText(g.ch, g.x * scale, g.y * scale + shift)
   }
   ctx.restore()
+}
+
+/**
+ * 지우개로 일부를 지운 보정 글자: 작은 캔버스에 글자를 그리고 지운 자리를 뚫은 뒤 옮겨 그린다.
+ * (페이지에 바로 뚫으면 글자 밑의 형광펜까지 지워지므로)
+ */
+function drawCutGlyph(ctx, g, px, family, scale) {
+  const dpr = ctx.getTransform?.().a || 1
+  const side = Math.ceil(px * 1.8)
+  const off = document.createElement('canvas')
+  off.width = Math.ceil(side * dpr)
+  off.height = Math.ceil(side * dpr)
+  const o = off.getContext('2d')
+  o.scale(dpr, dpr)
+  o.font = `${px}px ${family}, sans-serif`
+  o.textAlign = 'center'
+  o.textBaseline = 'alphabetic'
+  const m = o.measureText(g.ch)
+  const shift = Number.isFinite(m.actualBoundingBoxAscent) ? (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 : px * 0.35
+  o.fillStyle = g.color
+  o.fillText(g.ch, side / 2, side / 2 + shift)
+  o.globalCompositeOperation = 'destination-out'
+  const unit = g.size * scale // 지운 자리 좌표는 글자 크기 기준
+  for (const c of g.cuts) {
+    o.beginPath()
+    o.arc(side / 2 + c.dx * unit, side / 2 + c.dy * unit, c.r * unit, 0, Math.PI * 2)
+    o.fill()
+  }
+  ctx.drawImage(off, g.x * scale - side / 2, g.y * scale - side / 2, side, side)
 }
 
 /** 지우개 크기를 보여 주는 동그라미 */

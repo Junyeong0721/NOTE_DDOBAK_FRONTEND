@@ -234,7 +234,8 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
 
   function handleStrokesChange(pageIndex, next, info) {
     const before = pages[pageIndex].strokes
-    changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(p, next) : p)))
+    // 부분 지우개는 보정 글자(지운 자리)도 함께 바꿔서 넘긴다
+    changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(info?.corrections ? { ...p, corrections: info.corrections } : p, next) : p)))
     if (!info?.added || isHighlighter(info.added)) return
 
     // 새 획이 직전 줄에 이어지지 않으면(아래 왼쪽에서 시작 등) 직전 줄이 끝난 것

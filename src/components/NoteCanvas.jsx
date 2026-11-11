@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { PAGE_HEIGHT, PAGE_WIDTH, addPoint, createStroke } from '../note/content'
-import { charGroupOf } from '../note/correction'
+import { correctedStrokeIds, correctionGlyphs } from '../note/correction'
 import { eraseAlong } from '../note/erase'
+import { eraseGlyphs, glyphHit } from '../note/glyphErase'
 import { ensureFont } from '../note/fonts'
 import { clientToPage, hitStroke } from '../note/geometry'
 import { moveStrokes, selectStrokes, selectionBBox } from '../note/lasso'
@@ -57,7 +58,7 @@ export default function NoteCanvas({
       hiddenIds: erasedRef.current,
       selectionBox: v.selectionIds?.length ? selectionBBox(view, v.selectionIds) : null,
       lassoPath: active?.mode === 'lasso' ? active.path : null,
-      corrections: v.corrections, focusBox: v.focusBox, fontId: v.fontId,
+      corrections: active?.mode === 'erase-part' ? active.workCorrections : v.corrections, focusBox: v.focusBox, fontId: v.fontId,
       eraserCursor: cursorPt ? { ...cursorPt, r: v.eraserSize } : null,
     })
   }, [])
@@ -109,13 +110,17 @@ export default function NoteCanvas({
 
   const toPage = (e) => clientToPage(e.clientX, e.clientY, canvasRef.current.getBoundingClientRect())
 
-  // 획 지우개: 닿은 획 전체. 보정된 글자를 건드리면 그 글자를 이루는 원래 획을 모두 지운다 (글자 단위로 지워짐)
-  function eraseAt(pt) {
+  // 획 지우개: 닿은 획 전체. 보정된 글자는 화면에 보이는 글자에 닿으면 그 글자(숨은 원래 획 전체)를 지운다
+  function eraseAt(active, pt) {
     const v = viewRef.current
     for (const s of v.strokes) {
-      if (erasedRef.current.has(s.id) || !hitStroke(s, pt, v.eraserSize)) continue
+      if (erasedRef.current.has(s.id) || active.hidden.has(s.id) || !hitStroke(s, pt, v.eraserSize)) continue
       erasedRef.current.add(s.id)
-      for (const id of charGroupOf(v.corrections, s.id) ?? []) erasedRef.current.add(id)
+    }
+    for (const g of active.glyphs) {
+      if (!glyphHit(g, pt, pt, v.eraserSize)) continue
+      const ch = v.corrections.find((c) => c.id === g.ref.cid)?.chars[g.ref.index]
+      ch?.strokeIds.forEach((id) => erasedRef.current.add(id))
     }
   }
 
@@ -170,12 +175,15 @@ export default function NoteCanvas({
     const pt = toPage(e)
     const v = viewRef.current
     if (tool === 'eraser' && eraserMode === 'part') {
-      activeRef.current = { pointerId: e.pointerId, mode: 'erase-part', work: v.strokes, last: pt }
+      activeRef.current = { pointerId: e.pointerId, mode: 'erase-part', work: v.strokes, workCorrections: v.corrections ?? [], last: pt }
       erasePart(activeRef.current, pt)
     } else if (tool === 'eraser') {
       erasedRef.current = new Set()
-      activeRef.current = { pointerId: e.pointerId, mode: 'erase', last: pt }
-      eraseAt(pt)
+      activeRef.current = {
+        pointerId: e.pointerId, mode: 'erase', last: pt,
+        hidden: correctedStrokeIds(v.corrections), glyphs: correctionGlyphs(v.strokes, v.corrections),
+      }
+      eraseAt(activeRef.current, pt)
     } else if (tool === 'lasso') {
       const box = v.selectionIds?.length ? selectionBBox(v.strokes, v.selectionIds) : null
       if (box && inside(pt, box, SELECTION_GRAB_PAD)) {
@@ -192,11 +200,21 @@ export default function NoteCanvas({
     scheduleRedraw()
   }
 
-  // 부분 지우개: 지난 위치 → 지금 위치 사이를 지운다 (빨리 움직여도 빈틈 없이)
+  // 부분 지우개: 지난 위치 → 지금 위치 사이를 지운다 (빨리 움직여도 빈틈 없이).
+  // 보정 글자는 글자에 지운 자리를 기억하고, 숨은 원래 획은 건드리지 않는다
   function erasePart(active, pt) {
-    const v = viewRef.current
-    const r = eraseAlong(active.work, active.last, pt, v.eraserSize, (id) => charGroupOf(v.corrections, id))
-    active.work = r.strokes
+    const r = viewRef.current.eraserSize
+    const glyphs = correctionGlyphs(active.work, active.workCorrections)
+    const g = eraseGlyphs(active.workCorrections, glyphs, active.last, pt, r)
+    if (g.changed) {
+      active.workCorrections = g.corrections
+      if (g.removeStrokeIds.length) {
+        const gone = new Set(g.removeStrokeIds)
+        active.work = active.work.filter((s) => !gone.has(s.id))
+      }
+    }
+    const hidden = correctedStrokeIds(active.workCorrections)
+    active.work = eraseAlong(active.work, active.last, pt, r, { skip: (id) => hidden.has(id) }).strokes
     active.last = pt
   }
 
@@ -219,7 +237,7 @@ export default function NoteCanvas({
         erasePart(active, pt)
       } else if (active.mode === 'erase') {
         active.last = pt
-        eraseAt(pt)
+        eraseAt(active, pt)
       } else if (active.mode === 'lasso') {
         const [lx, ly] = active.path[active.path.length - 1]
         if (Math.hypot(pt.x - lx, pt.y - ly) >= LASSO_STEP) active.path.push([pt.x, pt.y])
@@ -242,7 +260,9 @@ export default function NoteCanvas({
     const v = viewRef.current
 
     if (active.mode === 'erase-part') {
-      if (active.work !== v.strokes) onStrokesChange(active.work, { erased: true })
+      if (active.work !== v.strokes || active.workCorrections !== (v.corrections ?? [])) {
+        onStrokesChange(active.work, { erased: true, corrections: active.workCorrections })
+      }
       else scheduleRedraw()
     } else if (active.mode === 'erase') {
       const erased = erasedRef.current
