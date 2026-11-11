@@ -48,7 +48,8 @@ exit /b 1
 
 :run
 echo [또박] 백엔드(8081)와 프론트(5173)를 새 창에서 켭니다.
-start "ddobak-backend" /d "%BACK%" cmd /k gradlew.bat bootRun
+rem backend log is UTF-8: switch that window to UTF-8 (65001) so Korean is not garbled
+start "ddobak-backend" /d "%BACK%" cmd /k "chcp 65001 >nul & gradlew.bat bootRun"
 start "ddobak-frontend" /d "%FRONT%" cmd /k npm.cmd run dev
 echo [또박] 서버가 켜질 때까지 20초 기다립니다...
 timeout /t 20 /nobreak >nul
