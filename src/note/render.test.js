@@ -114,7 +114,8 @@ describe('render selection', () => {
     expect(strokeColors).toContain('#e5484d')
     expect(strokeColors).not.toContain('#2563eb')
     const text = ctx.calls.find(([k]) => k === 'fillText')
-    expect(text.slice(1)).toEqual(['가', 210, 140])
+    expect(text.slice(1, 3)).toEqual(['가', 210]) // 글자 가운데 x
+    expect(text[3]).toBeGreaterThan(140) // 글자 높이 가운데(140)에 맞추려고 기준선은 그보다 아래
     expect(ctx.calls.some(([k, v]) => k === 'set:font' && v.includes('"ddobak-hi-melody"'))).toBe(true)
   })
 

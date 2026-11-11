@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildCorrection, charGroupOf, correctedStrokeIds, correctionGlyphs, correctionText,
-  pruneCorrections, removeCorrections, toggleChar, GLYPH_SCALE,
+  pruneCorrections, removeCorrections, toggleChar, GLYPH_SCALE, SLOT_FILL,
 } from './correction'
 
 // (x0,y0)→(x1,y1) 직선 획
@@ -72,7 +72,7 @@ describe('correctionGlyphs', () => {
 
   it('places each glyph at the center of its strokes with one size for the line', () => {
     const [g1, g2] = correctionGlyphs(strokes, cs)
-    expect(g1).toEqual({ ch: '가', x: 105, y: 70, size: 40 * GLYPH_SCALE, color: '#2563eb', fontId: 'gowun-dodum' })
+    expect(g1).toEqual({ ch: '가', x: 105, y: 70, size: 40 * GLYPH_SCALE, maxWidth: 45 * SLOT_FILL, color: '#2563eb', fontId: 'gowun-dodum' })
     expect(g2.x).toBe(150)
     expect(g2.y).toBe(70)
     expect(g2.color).toBe('#1f2a44')
@@ -89,6 +89,11 @@ describe('correctionGlyphs', () => {
     const slanted = [st('a1', 100, 50, 110, 90), st('b1', 140, 60, 160, 100), st('c1', 190, 70, 210, 110)]
     const g = correctionGlyphs(slanted, [corr([{ ch: '가', strokeIds: ['a1'] }, { ch: '나', strokeIds: ['b1'] }, { ch: '다', strokeIds: ['c1'] }])])
     expect(g.map((x) => Math.round(x.y))).toEqual([70, 80, 90])
+  })
+
+  it('has no width limit for a single character', () => {
+    const [g] = correctionGlyphs(strokes, [corr([{ ch: '가', strokeIds: ['a1'] }])])
+    expect(g.maxWidth).toBeNull()
   })
 
   it('skips characters set back to the original and characters with missing strokes', () => {

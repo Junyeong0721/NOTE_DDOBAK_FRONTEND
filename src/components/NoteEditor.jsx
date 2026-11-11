@@ -3,14 +3,17 @@ import { FOLDER_COLORS } from '../api/folders'
 import { getNote, updateNote } from '../api/notes'
 import { recognizeLine, ocrLabel, ocrErrorLabel } from '../api/ocr'
 import { parseContent, serializeContent } from '../note/content'
+import { buildCorrection, correctedStrokeIds, pruneCorrections, removeCorrections, toggleChar } from '../note/correction'
 import { canRedo, canUndo, createHistory, push, redo, undo } from '../note/history'
 import { deleteStrokes, selectionBBox, setStrokesKind } from '../note/lasso'
 import { renderLineToPng } from '../note/lineImage'
-import { LINE_IDLE_MS, groupLines, isLineEnd } from '../note/lines'
+import { groupLines, isLineEnd } from '../note/lines'
 import { renderThumbnail } from '../note/thumbnail'
 import { tidyPage, untidyPage } from '../note/tidy'
 import { HIGHLIGHTER_COLORS, HIGHLIGHTER_SIZES, PEN_COLORS, PEN_SIZES, isHighlighter } from '../note/tools'
 import { clampZoom, zoomAround } from '../note/zoom'
+import { DEFAULT_SETTINGS } from '../settings'
+import CorrectionBar from './CorrectionBar'
 import { BackIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
 import NoteCanvas from './NoteCanvas'
 import SelectionBar from './SelectionBar'
@@ -22,6 +25,13 @@ const SAVE_LABELS = { saving: '저장 중…', saved: '저장됨', error: '저�
 const GUIDES_KEY = 'ddobak.showGuides'
 const MAX_PAGE_WIDTH = 900
 const ZOOM_STEP = 0.25
+// 펜을 이만큼 멈추면 그 줄을 인식해 보정안을 만든다. 줄 묶기(2.5초)보다 길게 잡아 생각하며 멈출 때마다 인식 횟수가 닳지 않게 한다.
+const OCR_IDLE_MS = 4000
+
+/** 획이 바뀐 페이지: 지워진 획의 보정 글자는 정리한다 */
+const withStrokes = (page, strokes) => ({ ...page, strokes, corrections: pruneCorrections(page.corrections, strokes) })
+
+const touches = (correction, ids) => correction.chars.some((ch) => ch.strokeIds.some((id) => ids.includes(id)))
 
 function loadFlag(key) {
   try {
@@ -39,7 +49,7 @@ function saveFlag(key, value) {
   }
 }
 
-export default function NoteEditor({ noteId, folder, onBack }) {
+export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_SETTINGS }) {
   const [loadError, setLoadError] = useState('')
   const [title, setTitle] = useState('')
   const [meta, setMeta] = useState(null) // { version, page }
@@ -54,6 +64,7 @@ export default function NoteEditor({ noteId, folder, onBack }) {
   const [saveState, setSaveState] = useState('saved')
   const [ocrLabels, setOcrLabels] = useState({}) // 줄 id → 인식 결과 표시
   const [selection, setSelection] = useState(null) // { pageIndex, ids }
+  const [bar, setBar] = useState(null) // 보정 막대: { mode: 'suggest', pageIndex, correction } | { mode: 'edit', pageIndex, correctionId } | { mode: 'busy' | 'message' }
   const [zoom, setZoom] = useState(1)
   const [baseWidth, setBaseWidth] = useState(MAX_PAGE_WIDTH)
 
@@ -66,6 +77,8 @@ export default function NoteEditor({ noteId, folder, onBack }) {
   const zoomRef = useRef(1)
   const pinchStartRef = useRef(1)
   const pendingScrollRef = useRef(null)
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
 
   const pages = history?.present ?? null
   const ready = history !== null
@@ -174,20 +187,44 @@ export default function NoteEditor({ noteId, folder, onBack }) {
     setHistory((h) => push(h, next))
   }, [])
 
-  const updatePage = (pageIndex, fn) => changePages(pages.map((p, i) => (i === pageIndex ? { strokes: fn(p.strokes) } : p)))
+  const updatePage = (pageIndex, fn) => changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(p, fn(p.strokes)) : p)))
+  const updateCorrections = (pageIndex, fn) => changePages(pages.map((p, i) => (i === pageIndex ? { ...p, corrections: fn(p.corrections ?? []) } : p)))
 
-  // 한 줄이 끝나면 그 줄 이미지를 글자 인식(Google Vision)으로 보낸다
-  const requestOcr = useCallback((line, strokes) => {
-    if (line.kind !== 'text') return
+  // 획들을 글자 인식(Google Vision)으로 보내고 목표 글씨체 보정안을 만든다.
+  // manual: 올가미 "보정"처럼 사용자가 직접 부른 것 → 진행·실패를 막대에 보여 준다
+  const requestCorrection = useCallback(({ pageIndex, ids, lineId = null, manual = false }) => {
+    const page = latestPagesRef.current?.[pageIndex]
+    if (!page) return
+    const corrected = correctedStrokeIds(page.corrections)
+    const targets = page.strokes.filter((s) => ids.includes(s.id) && !isHighlighter(s) && !corrected.has(s.id))
+    if (targets.length === 0) {
+      if (manual) setBar({ mode: 'message', text: '보정할 글씨가 없어요.' })
+      return
+    }
+    const image = renderLineToPng(targets)
+    if (manual) setBar({ mode: 'busy' })
+    const show = (next) => setBar((cur) => (manual || !cur || cur.mode === 'suggest' ? next : cur)) // 자동 보정안은 고르는 중인 막대를 덮지 않는다
+    recognizeLine(image)
+      .then((r) => {
+        if (lineId) setOcrLabels((labels) => ({ ...labels, [lineId]: ocrLabel(r) }))
+        const correction = buildCorrection({ ocr: r, origin: image.origin, strokes: targets, fontId: settingsRef.current.fontId })
+        if (correction) show({ mode: 'suggest', pageIndex, correction })
+        else if (manual) show({ mode: 'message', text: r.engine === 'fake' ? '가짜 인식이라 보정할 수 없어요. (API 키 없음)' : '글자를 찾지 못했어요.' })
+      })
+      .catch((e) => {
+        if (lineId) setOcrLabels((labels) => ({ ...labels, [lineId]: ocrErrorLabel(e) }))
+        if (manual) show({ mode: 'message', text: ocrErrorLabel(e) })
+      })
+  }, [])
+
+  // 한 줄이 끝나면 자동으로 보정안 (설정에서 끌 수 있음). 같은 줄·같은 획 수는 한 번만 부른다
+  const autoCorrectLine = useCallback((pageIndex, line) => {
+    if (!settingsRef.current.autoSuggest || line.kind !== 'text') return
     const key = `${line.id}:${line.strokeIds.length}`
     if (ocrRequestedRef.current.has(key)) return
     ocrRequestedRef.current.add(key)
-    const byId = new Map(strokes.map((s) => [s.id, s]))
-    const image = renderLineToPng(line.strokeIds.map((id) => byId.get(id)).filter(Boolean))
-    recognizeLine(image)
-      .then((r) => setOcrLabels((labels) => ({ ...labels, [line.id]: ocrLabel(r) })))
-      .catch((e) => setOcrLabels((labels) => ({ ...labels, [line.id]: ocrErrorLabel(e) })))
-  }, [])
+    requestCorrection({ pageIndex, ids: line.strokeIds, lineId: line.id })
+  }, [requestCorrection])
 
   function handlePenDown() {
     clearTimeout(idleTimerRef.current)
@@ -195,7 +232,7 @@ export default function NoteEditor({ noteId, folder, onBack }) {
 
   function handleStrokesChange(pageIndex, next, info) {
     const before = pages[pageIndex].strokes
-    changePages(pages.map((p, i) => (i === pageIndex ? { strokes: next } : p)))
+    changePages(pages.map((p, i) => (i === pageIndex ? withStrokes(p, next) : p)))
     if (!info?.added || isHighlighter(info.added)) return
 
     // 새 획이 직전 줄에 이어지지 않으면(아래 왼쪽에서 시작 등) 직전 줄이 끝난 것
@@ -203,26 +240,39 @@ export default function NoteEditor({ noteId, folder, onBack }) {
     if (watch && watch.pageIndex === pageIndex) {
       const prevLine = groupLines(before).find((l) => l.strokeIds.includes(watch.strokeId))
       if (prevLine && isLineEnd({ line: prevLine, nextStroke: info.added, idleMs: Date.now() - watch.at })) {
-        requestOcr(prevLine, before)
+        autoCorrectLine(pageIndex, prevLine)
       }
     }
     lineWatchRef.current = { pageIndex, strokeId: info.added.id, at: Date.now() }
 
-    // 펜을 LINE_IDLE_MS 동안 떼고 있어도 줄이 끝난 것
+    // 펜을 OCR_IDLE_MS 동안 떼고 있어도 줄이 끝난 것
     clearTimeout(idleTimerRef.current)
     idleTimerRef.current = setTimeout(() => {
       const w = lineWatchRef.current
       const latest = latestPagesRef.current?.[w?.pageIndex]?.strokes
       if (!w || !latest) return
       const line = groupLines(latest).find((l) => l.strokeIds.includes(w.strokeId))
-      if (line) requestOcr(line, latest)
-    }, LINE_IDLE_MS)
+      if (line) autoCorrectLine(w.pageIndex, line)
+    }, OCR_IDLE_MS)
   }
 
   function changeHistory(fn) {
     dirtyRef.current = true
     setSelection(null)
     setHistory(fn)
+  }
+
+  function applySuggestion() {
+    const { pageIndex, correction } = bar
+    const page = pages[pageIndex]
+    const live = page ? pruneCorrections([correction], page.strokes) : []
+    if (live.length === 0) {
+      setBar(null) // 그사이 획이 지워졌다
+      return
+    }
+    const ids = live[0].chars.flatMap((c) => c.strokeIds)
+    updateCorrections(pageIndex, (cs) => [...removeCorrections(cs, ids), live[0]])
+    setBar({ mode: 'edit', pageIndex, correctionId: live[0].id })
   }
 
   function chooseTool(next) {
@@ -252,6 +302,10 @@ export default function NoteEditor({ noteId, folder, onBack }) {
   const strokeWidth = isHl ? HIGHLIGHTER_SIZES[highlighterSize] : PEN_SIZES[penSize]
   const pageWidth = Math.max(240, Math.round(baseWidth * zoom))
   const scale = pageWidth / 1000
+  const barCorrection = bar?.mode === 'suggest' ? bar.correction
+    : bar?.mode === 'edit' ? pages[bar.pageIndex]?.corrections?.find((c) => c.id === bar.correctionId) ?? null
+    : null
+  const barIds = barCorrection ? barCorrection.chars.flatMap((c) => c.strokeIds) : null
 
   return (
     <div className="editor">
@@ -296,7 +350,7 @@ export default function NoteEditor({ noteId, folder, onBack }) {
         tidied={tidied}
         onTidy={() => {
           setSelection(null)
-          changePages(pages.map((p) => ({ strokes: tidied ? untidyPage(p.strokes) : tidyPage(p.strokes) })))
+          changePages(pages.map((p) => ({ ...p, strokes: tidied ? untidyPage(p.strokes) : tidyPage(p.strokes) })))
         }}
       />
 
@@ -305,6 +359,9 @@ export default function NoteEditor({ noteId, folder, onBack }) {
           {pages.map((p, i) => {
             const selectedIds = selection?.pageIndex === i ? selection.ids : null
             const box = selectedIds?.length ? selectionBBox(p.strokes, selectedIds) : null
+            const focusBox = barIds && bar.pageIndex === i ? selectionBBox(p.strokes, barIds) : null
+            const corrected = selectedIds ? correctedStrokeIds(p.corrections) : null
+            const touchedCorrection = selectedIds ? (p.corrections ?? []).find((c) => touches(c, selectedIds)) : null
             return (
               <div className="page" key={i} style={{ width: pageWidth }}>
                 <NoteCanvas
@@ -317,6 +374,8 @@ export default function NoteEditor({ noteId, folder, onBack }) {
                   lines={linesByPage[i]}
                   showLines={showLines}
                   lineLabels={ocrLabels}
+                  corrections={p.corrections}
+                  focusBox={focusBox}
                   selectionIds={selectedIds}
                   onSelectionChange={(ids) => setSelection(ids.length ? { pageIndex: i, ids } : null)}
                   onPenDown={handlePenDown}
@@ -328,6 +387,20 @@ export default function NoteEditor({ noteId, folder, onBack }) {
                     count={selectedIds.length}
                     style={{ left: Math.max(0, (box.minX - 8) * scale), top: box.minY * scale > 64 ? (box.minY - 8) * scale - 52 : (box.maxY + 8) * scale + 8 }}
                     hasManualKind={p.strokes.some((s) => selectedIds.includes(s.id) && s.kind)}
+                    canCorrect={p.strokes.some((s) => selectedIds.includes(s.id) && !isHighlighter(s) && !corrected.has(s.id))}
+                    hasCorrected={Boolean(touchedCorrection)}
+                    onCorrect={() => {
+                      requestCorrection({ pageIndex: i, ids: selectedIds, manual: true })
+                      setSelection(null)
+                    }}
+                    onPickChars={() => {
+                      setBar({ mode: 'edit', pageIndex: i, correctionId: touchedCorrection.id })
+                      setSelection(null)
+                    }}
+                    onRestore={() => {
+                      updateCorrections(i, (cs) => removeCorrections(cs, selectedIds))
+                      setSelection(null)
+                    }}
                     onMarkDrawing={() => updatePage(i, (s) => setStrokesKind(s, selectedIds, 'drawing'))}
                     onMarkText={() => updatePage(i, (s) => setStrokesKind(s, selectedIds, 'text'))}
                     onAuto={() => updatePage(i, (s) => setStrokesKind(s, selectedIds, null))}
@@ -341,11 +414,25 @@ export default function NoteEditor({ noteId, folder, onBack }) {
               </div>
             )
           })}
-          <button type="button" className="add-page" onClick={() => changePages([...pages, { strokes: [] }])}>
+          <button type="button" className="add-page" onClick={() => changePages([...pages, { strokes: [], corrections: [] }])}>
             페이지 추가
           </button>
         </div>
       </main>
+
+      {bar && (
+        <CorrectionBar
+          bar={bar}
+          correction={barCorrection}
+          onApply={applySuggestion}
+          onToggle={(index) => updateCorrections(bar.pageIndex, (cs) => toggleChar(cs, bar.correctionId, index))}
+          onRemove={() => {
+            updateCorrections(bar.pageIndex, (cs) => removeCorrections(cs, barIds))
+            setBar(null)
+          }}
+          onClose={() => setBar(null)}
+        />
+      )}
 
       <div className="zoom-control" role="group" aria-label="확대·축소">
         <button type="button" className="btn-quiet icon-btn" aria-label="축소" onClick={() => applyZoom(zoom - ZOOM_STEP)}>

@@ -136,15 +136,43 @@ function drawFocus(ctx, box, scale) {
   ctx.restore()
 }
 
-/** 보정 글자: 원래 획 대신 목표 글씨체로 그린다 */
+// 글꼴마다 한글이 글꼴 칸(em) 안에서 차지하는 높이가 달라서(하이멜로디 '가'는 0.45em, 고운돋움은 0.85em),
+// 기준 글자 '가'의 실제 높이로 크기를 맞춘다. 글꼴을 다 받은 뒤 잰 값만 기억한다.
+const FALLBACK_RATIO = 0.8
+const ratioCache = new Map()
+
+function hangulRatio(ctx, family) {
+  if (ratioCache.has(family)) return ratioCache.get(family)
+  ctx.font = `100px ${family}`
+  const m = ctx.measureText('가')
+  const ratio = (m?.actualBoundingBoxAscent + m?.actualBoundingBoxDescent) / 100
+  if (!(ratio > 0.2)) return FALLBACK_RATIO
+  if (typeof document !== 'undefined' && document.fonts?.check(`100px ${family}`)) ratioCache.set(family, ratio)
+  return ratio
+}
+
+/** 보정 글자: 원래 획 대신 목표 글씨체로 그린다. size = '가' 같은 보통 글자의 실제 높이 */
 function drawGlyphs(ctx, glyphs, scale) {
   ctx.save()
   ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
+  ctx.textBaseline = 'alphabetic'
   for (const g of glyphs) {
-    ctx.font = `${g.size * scale}px ${fontFamily(g.fontId)}, sans-serif`
+    const family = fontFamily(g.fontId)
+    let px = (g.size * scale) / hangulRatio(ctx, family)
+    ctx.font = `${px}px ${family}, sans-serif`
+    let m = ctx.measureText(g.ch)
+    // 이웃 글자와 겹칠 만큼 넓으면 그만큼만 줄인다
+    if (g.maxWidth && m?.width > g.maxWidth * scale) {
+      px *= (g.maxWidth * scale) / m.width
+      ctx.font = `${px}px ${family}, sans-serif`
+      m = ctx.measureText(g.ch)
+    }
     ctx.fillStyle = g.color
-    ctx.fillText(g.ch, g.x * scale, g.y * scale)
+    // 글자마다 실제 높이의 가운데를 g.y에 맞춘다 (기준선 = 가운데 + (위 - 아래) / 2)
+    const asc = m?.actualBoundingBoxAscent
+    const desc = m?.actualBoundingBoxDescent
+    const shift = Number.isFinite(asc) && Number.isFinite(desc) ? (asc - desc) / 2 : px * 0.35
+    ctx.fillText(g.ch, g.x * scale, g.y * scale + shift)
   }
   ctx.restore()
 }

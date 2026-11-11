@@ -5,8 +5,8 @@
 import { strokeBBox } from './geometry'
 import { isHighlighter } from './tools'
 
-/** 보정 글자 크기 = 줄 높이 × GLYPH_SCALE (한글은 글꼴 칸보다 조금 작게 그려지므로 살짝 키운다) */
-export const GLYPH_SCALE = 1.05
+/** 보정 글자의 실제 높이 = 손글씨 줄 높이 × GLYPH_SCALE (받침·긴 획 때문에 줄 높이가 보통 글자보다 조금 크다) */
+export const GLYPH_SCALE = 0.9
 
 let seq = 0
 const newId = () => {
@@ -89,7 +89,10 @@ function fitLine(points) {
   return (x) => my + b * (x - mx)
 }
 
-/** 그릴 보정 글자 목록: [{ ch, x, y(가운데), size, color, fontId }] — 페이지 좌표 */
+/** 글자 폭 상한 = 이웃 글자 가운데까지 거리 × SLOT_FILL (빽빽하게 쓴 줄에서 글자끼리 겹치지 않게) */
+export const SLOT_FILL = 0.95
+
+/** 그릴 보정 글자 목록: [{ ch, x, y(가운데), size(글자 실제 높이), maxWidth, color, fontId }] — 페이지 좌표 */
 export function correctionGlyphs(strokes, corrections) {
   if (!corrections?.length) return []
   const byId = new Map(strokes.filter((s) => s.points.length > 0).map((s) => [s.id, s]))
@@ -102,7 +105,9 @@ export function correctionGlyphs(strokes, corrections) {
     const centers = boxes.map((b) => ({ x: centerX(b), y: (b.minY + b.maxY) / 2 }))
     const yAt = fitLine(centers)
     active.forEach((ch, i) => {
-      glyphs.push({ ch: ch.ch, x: centers[i].x, y: yAt(centers[i].x), size, color: byId.get(ch.strokeIds[0]).color, fontId: c.fontId })
+      const gaps = [centers[i - 1], centers[i + 1]].filter(Boolean).map((n) => Math.abs(n.x - centers[i].x))
+      const maxWidth = gaps.length ? Math.min(...gaps) * SLOT_FILL : null
+      glyphs.push({ ch: ch.ch, x: centers[i].x, y: yAt(centers[i].x), size, maxWidth, color: byId.get(ch.strokeIds[0]).color, fontId: c.fontId })
     })
   }
   return glyphs

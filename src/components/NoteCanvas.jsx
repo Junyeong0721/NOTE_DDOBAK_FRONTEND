@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { PAGE_HEIGHT, PAGE_WIDTH, addPoint, createStroke } from '../note/content'
+import { charGroupOf } from '../note/correction'
+import { ensureFont } from '../note/fonts'
 import { clientToPage, hitStroke } from '../note/geometry'
 import { moveStrokes, selectStrokes, selectionBBox } from '../note/lasso'
 import { drawPage } from '../note/render'
@@ -20,7 +22,7 @@ const center = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
  */
 export default function NoteCanvas({
   strokes, onStrokesChange, tool, color, width,
-  showGuides, lines, showLines, lineLabels,
+  showGuides, lines, showLines, lineLabels, corrections, focusBox,
   selectionIds, onSelectionChange, onPenDown, onPinch, scrollContainer,
 }) {
   const canvasRef = useRef(null)
@@ -33,7 +35,7 @@ export default function NoteCanvas({
   const lastPenRef = useRef(0)
   const frameRef = useRef(0)
   const viewRef = useRef(null)
-  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds }
+  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox }
 
   const redraw = useCallback(() => {
     frameRef.current = 0
@@ -51,6 +53,7 @@ export default function NoteCanvas({
       hiddenIds: erasedRef.current,
       selectionBox: v.selectionIds?.length ? selectionBBox(view, v.selectionIds) : null,
       lassoPath: active?.mode === 'lasso' ? active.path : null,
+      corrections: v.corrections, focusBox: v.focusBox,
     })
   }, [])
 
@@ -86,13 +89,28 @@ export default function NoteCanvas({
 
   useEffect(() => {
     scheduleRedraw()
-  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, scheduleRedraw])
+  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, scheduleRedraw])
+
+  // 보정 글자의 글꼴을 받은 뒤 다시 그린다 (받기 전에는 기본 글꼴로 잠깐 보일 수 있음)
+  const fontKey = [...new Set((corrections ?? []).map((c) => c.fontId))].sort().join(',')
+  useEffect(() => {
+    if (!fontKey) return undefined
+    let alive = true
+    Promise.all(fontKey.split(',').map(ensureFont)).then(() => alive && scheduleRedraw())
+    return () => {
+      alive = false
+    }
+  }, [fontKey, scheduleRedraw])
 
   const toPage = (e) => clientToPage(e.clientX, e.clientY, canvasRef.current.getBoundingClientRect())
 
+  // 보정된 글자를 건드리면 그 글자를 이루는 원래 획을 모두 지운다 (글자 단위로 지워짐)
   function eraseAt(pt) {
-    for (const s of viewRef.current.strokes) {
-      if (!erasedRef.current.has(s.id) && hitStroke(s, pt, ERASER_RADIUS)) erasedRef.current.add(s.id)
+    const v = viewRef.current
+    for (const s of v.strokes) {
+      if (erasedRef.current.has(s.id) || !hitStroke(s, pt, ERASER_RADIUS)) continue
+      erasedRef.current.add(s.id)
+      for (const id of charGroupOf(v.corrections, s.id) ?? []) erasedRef.current.add(id)
     }
   }
 
