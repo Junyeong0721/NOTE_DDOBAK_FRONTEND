@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { PAGE_HEIGHT, PAGE_WIDTH, addPoint, createStroke } from '../note/content'
 import { charGroupOf } from '../note/correction'
+import { eraseAlong } from '../note/erase'
 import { ensureFont } from '../note/fonts'
 import { clientToPage, hitStroke } from '../note/geometry'
 import { moveStrokes, selectStrokes, selectionBBox } from '../note/lasso'
 import { drawPage } from '../note/render'
 import { effectiveDpr, pinchDistance } from '../note/zoom'
 
-const ERASER_RADIUS = 10 // 페이지 좌표
 const PALM_GUARD_MS = 1500 // 펜을 쓴 직후 손바닥 터치로 화면이 밀리지 않게
 const SELECTION_GRAB_PAD = 14 // 선택 상자 주변 이만큼은 "잡아서 옮기기"로 본다
 const LASSO_STEP = 3 // 올가미 점 간격(페이지 좌표)
@@ -22,7 +22,7 @@ const center = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
  */
 export default function NoteCanvas({
   strokes, onStrokesChange, tool, color, width,
-  showGuides, lines, showLines, lineLabels, corrections, focusBox, fontId,
+  showGuides, lines, showLines, lineLabels, corrections, focusBox, fontId, eraserSize = 10, eraserMode = 'part',
   selectionIds, onSelectionChange, onPenDown, onPinch, scrollContainer,
 }) {
   const canvasRef = useRef(null)
@@ -35,7 +35,8 @@ export default function NoteCanvas({
   const lastPenRef = useRef(0)
   const frameRef = useRef(0)
   const viewRef = useRef(null)
-  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId }
+  const hoverRef = useRef(null) // 지우개 동그라미를 보여 줄 펜·마우스 위치
+  viewRef.current = { strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId, eraserSize, tool }
 
   const redraw = useCallback(() => {
     frameRef.current = 0
@@ -45,7 +46,10 @@ export default function NoteCanvas({
     ctx.setTransform(dprRef.current, 0, 0, dprRef.current, 0, 0)
     const v = viewRef.current
     const active = activeRef.current
-    const view = active?.mode === 'move' ? moveStrokes(v.strokes, v.selectionIds, active.dx, active.dy) : v.strokes
+    const view = active?.mode === 'move' ? moveStrokes(v.strokes, v.selectionIds, active.dx, active.dy)
+      : active?.mode === 'erase-part' ? active.work
+        : v.strokes
+    const cursorPt = v.tool === 'eraser' ? (active?.last ?? hoverRef.current) : null
     drawPage(ctx, {
       strokes: view, scale: scaleRef.current, showGuides: v.showGuides,
       lines: v.lines, showLines: v.showLines, lineLabels: v.lineLabels,
@@ -54,6 +58,7 @@ export default function NoteCanvas({
       selectionBox: v.selectionIds?.length ? selectionBBox(view, v.selectionIds) : null,
       lassoPath: active?.mode === 'lasso' ? active.path : null,
       corrections: v.corrections, focusBox: v.focusBox, fontId: v.fontId,
+      eraserCursor: cursorPt ? { ...cursorPt, r: v.eraserSize } : null,
     })
   }, [])
 
@@ -89,7 +94,7 @@ export default function NoteCanvas({
 
   useEffect(() => {
     scheduleRedraw()
-  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId, scheduleRedraw])
+  }, [strokes, showGuides, lines, showLines, lineLabels, selectionIds, corrections, focusBox, fontId, tool, eraserSize, scheduleRedraw])
 
   // 보정 글자의 글꼴을 받은 뒤 다시 그린다 (받기 전에는 기본 글꼴로 잠깐 보일 수 있음)
   const fontKey = corrections?.length ? (fontId ?? [...new Set(corrections.map((c) => c.fontId))].sort().join(',')) : ''
@@ -104,11 +109,11 @@ export default function NoteCanvas({
 
   const toPage = (e) => clientToPage(e.clientX, e.clientY, canvasRef.current.getBoundingClientRect())
 
-  // 보정된 글자를 건드리면 그 글자를 이루는 원래 획을 모두 지운다 (글자 단위로 지워짐)
+  // 획 지우개: 닿은 획 전체. 보정된 글자를 건드리면 그 글자를 이루는 원래 획을 모두 지운다 (글자 단위로 지워짐)
   function eraseAt(pt) {
     const v = viewRef.current
     for (const s of v.strokes) {
-      if (erasedRef.current.has(s.id) || !hitStroke(s, pt, ERASER_RADIUS)) continue
+      if (erasedRef.current.has(s.id) || !hitStroke(s, pt, v.eraserSize)) continue
       erasedRef.current.add(s.id)
       for (const id of charGroupOf(v.corrections, s.id) ?? []) erasedRef.current.add(id)
     }
@@ -164,9 +169,12 @@ export default function NoteCanvas({
 
     const pt = toPage(e)
     const v = viewRef.current
-    if (tool === 'eraser') {
+    if (tool === 'eraser' && eraserMode === 'part') {
+      activeRef.current = { pointerId: e.pointerId, mode: 'erase-part', work: v.strokes, last: pt }
+      erasePart(activeRef.current, pt)
+    } else if (tool === 'eraser') {
       erasedRef.current = new Set()
-      activeRef.current = { pointerId: e.pointerId, mode: 'erase' }
+      activeRef.current = { pointerId: e.pointerId, mode: 'erase', last: pt }
       eraseAt(pt)
     } else if (tool === 'lasso') {
       const box = v.selectionIds?.length ? selectionBBox(v.strokes, v.selectionIds) : null
@@ -184,9 +192,22 @@ export default function NoteCanvas({
     scheduleRedraw()
   }
 
+  // 부분 지우개: 지난 위치 → 지금 위치 사이를 지운다 (빨리 움직여도 빈틈 없이)
+  function erasePart(active, pt) {
+    const v = viewRef.current
+    const r = eraseAlong(active.work, active.last, pt, v.eraserSize, (id) => charGroupOf(v.corrections, id))
+    active.work = r.strokes
+    active.last = pt
+  }
+
   function handlePointerMove(e) {
     if (e.pointerType === 'touch') return touchMove(e)
     const active = activeRef.current
+    if (!active && tool === 'eraser') {
+      hoverRef.current = toPage(e) // 펜을 대기 전에도 지우개 크기를 동그라미로 보여 준다
+      scheduleRedraw()
+      return
+    }
     if (!active || e.pointerId !== active.pointerId) return
     e.preventDefault()
     lastPenRef.current = Date.now()
@@ -194,7 +215,10 @@ export default function NoteCanvas({
     const events = coalesced.length > 0 ? coalesced : [e]
     for (const ev of events) {
       const pt = toPage(ev)
-      if (active.mode === 'erase') {
+      if (active.mode === 'erase-part') {
+        erasePart(active, pt)
+      } else if (active.mode === 'erase') {
+        active.last = pt
         eraseAt(pt)
       } else if (active.mode === 'lasso') {
         const [lx, ly] = active.path[active.path.length - 1]
@@ -217,7 +241,10 @@ export default function NoteCanvas({
     lastPenRef.current = Date.now()
     const v = viewRef.current
 
-    if (active.mode === 'erase') {
+    if (active.mode === 'erase-part') {
+      if (active.work !== v.strokes) onStrokesChange(active.work, { erased: true })
+      else scheduleRedraw()
+    } else if (active.mode === 'erase') {
       const erased = erasedRef.current
       erasedRef.current = null
       if (erased.size > 0) onStrokesChange(v.strokes.filter((s) => !erased.has(s.id)), { erased: [...erased] })
@@ -244,6 +271,11 @@ export default function NoteCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPointerLeave={() => {
+        if (!hoverRef.current) return
+        hoverRef.current = null
+        scheduleRedraw()
+      }}
     />
   )
 }

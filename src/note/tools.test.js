@@ -1,11 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import { HIGHLIGHTER_ALPHA, HIGHLIGHTER_COLORS, HIGHLIGHTER_SIZES, PEN_COLORS, PEN_SIZES, isHighlighter } from './tools'
+import {
+  ERASER_SIZE, HIGHLIGHTER_ALPHA, HIGHLIGHTER_COLORS, HIGHLIGHTER_WIDTH, PEN_COLORS, PEN_WIDTH, clampToRange, isHighlighter,
+} from './tools'
 import { createStroke } from './content'
 
 describe('tools', () => {
-  it('has three pen sizes and three highlighter sizes', () => {
-    expect(PEN_SIZES).toEqual({ thin: 1.6, normal: 2.4, bold: 4.0 })
-    expect(HIGHLIGHTER_SIZES).toEqual({ thin: 12, normal: 18, bold: 26 })
+  it('lets pen, highlighter and eraser sizes slide over a range, starting where the old normal size was', () => {
+    expect(PEN_WIDTH).toEqual({ min: 0.8, max: 8, step: 0.1, initial: 2.4 })
+    expect(HIGHLIGHTER_WIDTH).toEqual({ min: 6, max: 40, step: 1, initial: 18 })
+    expect(ERASER_SIZE).toEqual({ min: 4, max: 60, step: 1, initial: 10 })
+  })
+
+  it('keeps a size inside its range and on its step', () => {
+    expect(clampToRange(100, PEN_WIDTH)).toBe(8)
+    expect(clampToRange(0, PEN_WIDTH)).toBe(0.8)
+    expect(clampToRange(2.4567, PEN_WIDTH)).toBe(2.5)
+    expect(clampToRange('x', PEN_WIDTH)).toBe(2.4)
   })
 
   it('has four pen colors starting with navy ink and four highlighter colors', () => {

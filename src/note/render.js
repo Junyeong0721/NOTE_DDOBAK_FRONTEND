@@ -13,6 +13,8 @@ const DRAWING_COLOR = '#d32f2f'
 /** 필압 0.5에서 기본 굵기, 세게 누를수록 굵게 */
 export const strokeLineWidth = (width, pressure, scale) => width * (0.4 + 1.2 * pressure) * scale
 
+const THIN_PATH_PX = 2.5 // 가장 세게 눌러도 이보다 가늘면 한 경로로 그린다
+
 // 형광펜: 한 경로로 한 번에 그려야 겹치는 구간이 진해지지 않는다. 필압과 상관없이 고정 굵기.
 function drawHighlighter(ctx, pts, stroke, scale) {
   ctx.save()
@@ -52,6 +54,23 @@ export function drawStroke(ctx, stroke, scale) {
     ctx.beginPath()
     ctx.arc(x * scale, y * scale, strokeLineWidth(stroke.width, p, scale) / 2, 0, Math.PI * 2)
     ctx.fill()
+    return
+  }
+
+  // 아주 가는 선은 구간마다 따로 그리면 이음새가 겹쳐 점선처럼 보이므로 한 경로로 그린다 (필압은 평균)
+  if (strokeLineWidth(stroke.width, 1, scale) < THIN_PATH_PX) {
+    const avg = pts.reduce((t, p) => t + p[2], 0) / pts.length
+    ctx.lineWidth = strokeLineWidth(stroke.width, avg, scale)
+    ctx.beginPath()
+    ctx.moveTo(pts[0][0] * scale, pts[0][1] * scale)
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1]
+      const [x1, y1] = pts[i]
+      ctx.quadraticCurveTo(x0 * scale, y0 * scale, ((x0 + x1) / 2) * scale, ((y0 + y1) / 2) * scale)
+    }
+    const last = pts[pts.length - 1]
+    ctx.lineTo(last[0] * scale, last[1] * scale)
+    ctx.stroke()
     return
   }
 
@@ -189,6 +208,19 @@ function drawGlyphs(ctx, glyphs, scale) {
   ctx.restore()
 }
 
+/** 지우개 크기를 보여 주는 동그라미 */
+function drawEraserCursor(ctx, { x, y, r }, scale) {
+  ctx.save()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = 'rgba(31, 42, 68, 0.55)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)'
+  ctx.beginPath()
+  ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}
+
 function drawLasso(ctx, path, scale) {
   if (path.length < 2) return
   ctx.save()
@@ -210,7 +242,7 @@ function drawLasso(ctx, path, scale) {
 export function drawPage(ctx, {
   strokes, scale, showGuides = false, lines = [], showLines = false, lineLabels = {},
   activeStroke = null, hiddenIds = null, selectionBox = null, lassoPath = null,
-  corrections = null, focusBox = null, fontId = null,
+  corrections = null, focusBox = null, fontId = null, eraserCursor = null,
 }) {
   ctx.clearRect(0, 0, PAGE_WIDTH * scale, PAGE_HEIGHT * scale)
   ctx.fillStyle = '#ffffff'
@@ -230,4 +262,5 @@ export function drawPage(ctx, {
   if (showLines) drawLineBoxes(ctx, strokes, lines, lineLabels, scale)
   if (selectionBox) drawSelection(ctx, selectionBox, scale)
   if (lassoPath) drawLasso(ctx, lassoPath, scale)
+  if (eraserCursor) drawEraserCursor(ctx, eraserCursor, scale)
 }
