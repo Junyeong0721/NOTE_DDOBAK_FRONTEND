@@ -1,5 +1,6 @@
 // 기기별 설정(이 iPad/PC의 브라우저에 저장). 목표 글씨체는 노트 보정과 연습 모드가 같이 쓴다.
-import { DEFAULT_FONT_ID, FONTS } from './note/fonts'
+import { DEFAULT_FONT_ID } from './note/fonts'
+import { isAvailableFont } from './note/myFonts'
 
 const KEY = 'ddobak.settings'
 
@@ -8,7 +9,7 @@ export const DEFAULT_SETTINGS = Object.freeze({ fontId: DEFAULT_FONT_ID, autoSug
 export function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null')
-    const fontOk = FONTS.some((f) => f.id === raw?.fontId)
+    const fontOk = isAvailableFont(raw?.fontId)
     const autoOk = typeof raw?.autoSuggest === 'boolean'
     if (!fontOk || !autoOk) return { ...DEFAULT_SETTINGS }
     return { fontId: raw.fontId, autoSuggest: raw.autoSuggest }
