@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { bbox, emptyGrid, fMeasure, fitTo, scoreGlyph, scoreSet, shear } from './score'
+import { bbox, emptyGrid, fMeasure, fitTo, scoreGlyph, scoreRound, scoreSet, shear } from './score'
 
 const N = 64
 
@@ -122,5 +122,13 @@ describe('scoreSet', () => {
 
   it('returns zeros when nothing can be scored', () => {
     expect(scoreSet([null]).counted).toBe(0)
+  })
+})
+
+describe('scoreRound', () => {
+  it('averages the questions of a round', () => {
+    const q = (t) => ({ total: t, shapePct: t, positionPct: t - 10, tiltPct: t + 10, counted: 1 })
+    expect(scoreRound([q(90), q(80), q(70), q(0), q(61)])).toEqual({ total: 60, shapePct: 60, positionPct: 50, tiltPct: 70 })
+    expect(scoreRound([]).total).toBe(0)
   })
 })

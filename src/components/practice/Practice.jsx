@@ -2,23 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { saveAttempt } from '../../api/practice'
 import { renderAdviceImage } from '../../practice/adviceImage'
 import { buildAttemptBody, resultFromAttempt } from '../../practice/board'
-import { layoutCells } from '../../practice/cells'
 import { loadPracticeFont, savePracticeFont } from '../../practice/practiceFont'
-import { nextSet } from '../../practice/sets'
+import { drawRound } from '../../practice/questions'
 import Logo from '../Logo'
 import PracticeBoard from './PracticeBoard'
 import PracticeHome from './PracticeHome'
 import PracticeResult from './PracticeResult'
 import './Practice.css'
 
-/** 글씨 연습: 고르기 → 쓰기 → 결과 */
+/** 글씨 연습: 단계 고르기 → 랜덤 문제 5개 쓰기 → 판 결과 */
 export default function Practice({ onExit }) {
   const [fontId, setFontId] = useState(loadPracticeFont)
   const [screen, setScreen] = useState('home') // home | board | result
-  const [task, setTask] = useState(null) // { setId, text }
+  const [stage, setStage] = useState(null)
+  const [texts, setTexts] = useState([]) // 이번 판 문제 5개
   const [result, setResult] = useState(null)
   const [review, setReview] = useState(false)
-  const [round, setRound] = useState(0) // 다시 하기마다 쓰기 화면을 새로
+  const [roundNo, setRoundNo] = useState(0) // 판마다 쓰기 화면을 새로
+  const lastTexts = useRef({}) // 단계별 바로 전 판 문제 (다음 판에서 겹치지 않게)
   const saveToken = useRef(0) // 가장 최근 채점만 화면에 반영
 
   useEffect(() => () => {
@@ -30,12 +31,15 @@ export default function Practice({ onExit }) {
     savePracticeFont(id)
   }, [])
 
-  const start = (next) => {
+  const start = (stageId) => {
     saveToken.current++
-    setTask(next)
+    const next = drawRound(stageId, { avoid: lastTexts.current[stageId] ?? [] })
+    lastTexts.current[stageId] = next
+    setStage(stageId)
+    setTexts(next)
     setResult(null)
     setReview(false)
-    setRound((r) => r + 1)
+    setRoundNo((n) => n + 1)
     setScreen('board')
   }
 
@@ -44,10 +48,10 @@ export default function Practice({ onExit }) {
     setScreen('home')
   }
 
-  /** 점수는 바로 보여 주고, 저장과 조언은 뒤에서 받아 붙인다 (한 번 채점에 한 번만 저장) */
+  /** 점수는 바로 보여 주고, 저장과 조언은 뒤에서 받아 붙인다 (한 판에 한 번만 저장) */
   const graded = async (g) => {
     const token = ++saveToken.current
-    setResult({ ...g, setId: task.setId, advice: null, adviceState: 'pending' })
+    setResult({ ...g, advice: null, adviceState: 'pending' })
     setScreen('result')
     const settle = (patch) => {
       if (saveToken.current === token) setResult((r) => (r ? { ...r, ...patch } : r))
@@ -55,11 +59,11 @@ export default function Practice({ onExit }) {
     try {
       let image = null
       try {
-        image = await renderAdviceImage({ text: g.text, fontId: g.fontId, cellStrokes: g.cellStrokes })
+        image = await renderAdviceImage({ fontId: g.fontId, questions: g.questions })
       } catch {
         // 그림을 못 만들면 조언 없이 기록만 저장
       }
-      const saved = await saveAttempt(buildAttemptBody({ ...g, setId: task.setId, cells: layoutCells(g.text), image }))
+      const saved = await saveAttempt(buildAttemptBody({ ...g, image }))
       settle(saved.adviceStatus === 'OK' && saved.advice ? { advice: saved.advice, adviceState: 'ok' } : { adviceState: 'unavailable' })
     } catch {
       settle({ adviceState: 'unavailable', saveFailed: true })
@@ -68,13 +72,11 @@ export default function Practice({ onExit }) {
 
   const openReview = (attempt) => {
     saveToken.current++
-    setTask({ setId: attempt.setId ?? null, text: attempt.text })
+    setStage(attempt.stage)
     setResult(resultFromAttempt(attempt))
     setReview(true)
     setScreen('result')
   }
-
-  const next = task?.setId ? nextSet(task.setId) : null
 
   return (
     <div className="practice">
@@ -85,17 +87,11 @@ export default function Practice({ onExit }) {
         <button type="button" className="btn-quiet" onClick={onExit}>홈으로</button>
       </header>
       {screen === 'home' && <PracticeHome fontId={fontId} onFont={changeFont} onStart={start} onReview={openReview} />}
-      {screen === 'board' && task && (
-        <PracticeBoard key={round} text={task.text} fontId={fontId} onFont={changeFont} onGraded={graded} onBack={goHome} />
+      {screen === 'board' && (
+        <PracticeBoard key={roundNo} stage={stage} texts={texts} fontId={fontId} onFont={changeFont} onGraded={graded} onBack={goHome} />
       )}
       {screen === 'result' && result && (
-        <PracticeResult
-          result={result}
-          review={review}
-          onRetry={() => start(task)}
-          onNext={next ? () => start({ setId: next.id, text: next.text }) : null}
-          onBack={goHome}
-        />
+        <PracticeResult result={result} review={review} onAgain={() => start(stage)} onBack={goHome} />
       )}
     </div>
   )

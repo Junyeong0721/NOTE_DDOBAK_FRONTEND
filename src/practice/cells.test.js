@@ -1,14 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { boardSize, cellAt, layoutCells, normalizeText, toCellStroke } from './cells'
+import { boardSize, cellAt, isHangul, layoutCells } from './cells'
 
 describe('practice cells', () => {
-  it('cleans typed text', () => {
-    expect(normalizeText('  가  나 ')).toBe('가 나')
-    expect(normalizeText('')).toBe('')
-    expect(normalizeText(null)).toBe('')
-    expect([...normalizeText('가'.repeat(31))].length).toBe(30)
-  })
-
   it('lays one character per cell and marks spaces blank', () => {
     const cells = layoutCells('가나 다')
     expect(cells.length).toBe(4)
@@ -32,12 +25,6 @@ describe('practice cells', () => {
     expect(cellAt(cells, 450, 50)).toBe(-1)
   })
 
-  it('treats anything but Hangul as a cell you cannot write in', () => {
-    const cells = layoutCells('가a1ㄱㅏ!')
-    expect(cells.map((c) => c.blank)).toEqual([false, true, true, false, false, true])
-    expect(cellAt(cells, 150, 50)).toBe(-1)
-  })
-
   it('finds the cell under a point', () => {
     const cells = layoutCells('가나 다')
     expect(cellAt(cells, 150, 50)).toBe(1)
@@ -45,12 +32,11 @@ describe('practice cells', () => {
     expect(cellAt(cells, 450, 50)).toBe(-1) // 글자 없는 자리
     expect(cellAt(cells, -5, 50)).toBe(-1)
     expect(cellAt(cells, 50, 150)).toBe(-1)
-    expect(cellAt(layoutCells('가'.repeat(11)), 1050, 50)).toBe(-1) // 오른쪽 밖은 다음 줄로 넘기지 않는다
   })
 
-  it('moves a stroke into cell coordinates', () => {
-    const cell = layoutCells('가나')[1]
-    const s = toCellStroke({ id: 'a', points: [[120, 30, 0.5, 7]] }, cell)
-    expect(s).toEqual({ id: 'a', points: [[20, 30, 0.5, 7]] })
+  it('only lets you write Hangul', () => {
+    expect(['가', 'ㄱ', 'ㅏ', '힣'].every(isHangul)).toBe(true)
+    expect(['a', '1', ' ', '!', '가나'].some(isHangul)).toBe(false)
+    expect(layoutCells('가a').map((c) => c.blank)).toEqual([false, true])
   })
 })

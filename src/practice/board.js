@@ -12,35 +12,45 @@ export function pickInput(sawPen, pointerType) {
   return { accept: !sawPen, sawPen }
 }
 
-/** 칸에 쓴 획이 하나라도 있는지 */
-export const hasInk = (cellStrokes) => cellStrokes.some((strokes) => strokes && strokes.length > 0)
+/** 칸들에 쓴 획이 하나라도 있는지 */
+export const hasInk = (cellStrokes) => (cellStrokes ?? []).some((strokes) => strokes && strokes.length > 0)
 
-/** [채점하기]를 누를 수 있는지: 글꼴을 다 받았고, 한 칸이라도 썼고, 채점 중이 아닐 때 */
-export function canGrade(cells, cellStrokes, fontReady, busy = false) {
+/** 문제마다 쓴 게 있는지: [true, false, …] */
+export const writtenFlags = (roundStrokes, count) => Array.from({ length: count }, (_, i) => hasInk(roundStrokes[i]))
+
+/** [채점하기]를 누를 수 있는지: 글꼴을 다 받았고, 어느 문제든 한 칸이라도 썼고, 채점 중이 아닐 때 */
+export function canGrade(roundStrokes, fontReady, busy = false) {
   if (!fontReady || busy) return false
-  return cells.some((c) => !c.blank && (cellStrokes[c.index]?.length ?? 0) > 0)
+  return roundStrokes.some((cellStrokes) => hasInk(cellStrokes))
 }
 
 const round1 = (v) => Math.round(v * 10) / 10
 
-/** 서버에 보낼 기록. 빈칸은 null, 글자 칸은 { ch, strokes } */
-export function buildAttemptBody({ setId = null, text, fontId, guide, cells, cellStrokes, glyphScores, setScore, image }) {
+/**
+ * 서버에 보낼 한 판 기록.
+ * questions: [{ text, cells, cellStrokes, glyphScores, score }] — score는 scoreSet 결과
+ * round: scoreRound 결과
+ */
+export function buildAttemptBody({ stage, fontId, guide, questions, round, image }) {
   return {
-    setId,
-    text,
+    stage,
     fontId,
     fontLabel: fontById(fontId).label,
     guide,
-    cells: cells.map((c) => (c.blank ? null : { ch: c.ch, strokes: cellStrokes[c.index] ?? [] })),
-    charScores: cells.map((c) => {
-      const g = glyphScores[c.index]
-      if (c.blank || !g) return null
-      return { total: g.total, shape: round1(g.shape), position: round1(g.position), tilt: round1(g.tilt), empty: g.empty, skipped: g.skipped }
-    }),
-    totalScore: setScore.total,
-    shapeScore: setScore.shapePct,
-    positionScore: setScore.positionPct,
-    tiltScore: setScore.tiltPct,
+    items: questions.map((q) => ({
+      text: q.text,
+      cells: q.cells.map((c) => (c.blank ? null : { ch: c.ch, strokes: q.cellStrokes[c.index] ?? [] })),
+      charScores: q.cells.map((c) => {
+        const g = q.glyphScores[c.index]
+        if (c.blank || !g) return null
+        return { total: g.total, shape: round1(g.shape), position: round1(g.position), tilt: round1(g.tilt), empty: g.empty, skipped: g.skipped }
+      }),
+      score: { total: q.score.total, shape: q.score.shapePct, position: q.score.positionPct, tilt: q.score.tiltPct },
+    })),
+    totalScore: round.total,
+    shapeScore: round.shapePct,
+    positionScore: round.positionPct,
+    tiltScore: round.tiltPct,
     image: image ?? null,
   }
 }
@@ -48,13 +58,16 @@ export function buildAttemptBody({ setId = null, text, fontId, guide, cells, cel
 /** 저장된 기록(서버 응답)을 결과 화면이 쓰는 모양으로 */
 export function resultFromAttempt(attempt) {
   return {
-    setId: attempt.setId ?? null,
-    text: attempt.text,
+    stage: attempt.stage,
     fontId: attempt.fontId,
     guide: attempt.guide,
-    cellStrokes: attempt.cells.map((c) => c?.strokes ?? []),
-    glyphScores: attempt.charScores,
-    setScore: {
+    questions: (attempt.items ?? []).map((item) => ({
+      text: item.text,
+      cellStrokes: item.cells.map((c) => c?.strokes ?? []),
+      glyphScores: item.charScores,
+      score: { total: item.score?.total ?? 0 },
+    })),
+    round: {
       total: attempt.totalScore,
       shapePct: attempt.shapeScore,
       positionPct: attempt.positionScore,

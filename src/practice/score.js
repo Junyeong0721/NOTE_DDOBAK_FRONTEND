@@ -238,3 +238,11 @@ export function scoreSet(glyphs) {
     counted: counted.length,
   }
 }
+
+/** 한 판 점수: 문제 점수(scoreSet 결과)들의 평균. 안 쓴 문제도 0점으로 들어간다 */
+export function scoreRound(questionScores) {
+  const n = questionScores.length
+  if (n === 0) return { total: 0, shapePct: 0, positionPct: 0, tiltPct: 0 }
+  const mean = (key) => Math.round(questionScores.reduce((t, q) => t + q[key], 0) / n)
+  return { total: mean('total'), shapePct: mean('shapePct'), positionPct: mean('positionPct'), tiltPct: mean('tiltPct') }
+}

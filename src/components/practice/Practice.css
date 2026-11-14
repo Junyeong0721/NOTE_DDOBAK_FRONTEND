@@ -63,99 +63,62 @@
   background: linear-gradient(transparent 58%, rgba(255, 216, 77, 0.6) 58%), var(--paper);
 }
 
-/* ---------- 단계 탭: 바인더 인덱스 ---------- */
-.practice-tabs {
-  display: flex;
-  gap: 4px;
-  padding-left: 12px;
-  overflow-x: auto;
-}
-
-.practice-tab {
-  padding: 8px 18px 10px;
-  border: none;
-  border-radius: 10px 10px 0 0;
-  background: color-mix(in srgb, var(--tab) 30%, var(--paper));
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.practice-tab:nth-child(1) { --tab: var(--yellow); }
-.practice-tab:nth-child(2) { --tab: var(--mint); }
-.practice-tab:nth-child(3) { --tab: var(--sky); }
-.practice-tab:nth-child(4) { --tab: var(--pink); }
-
-.practice-tab.selected {
-  background: var(--tab);
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.practice-sets {
+/* ---------- 단계 카드: 바인더 인덱스 색 ---------- */
+.practice-stages {
   list-style: none;
   margin: 0;
-  padding: 20px;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.practice-stage {
+  --tab: var(--yellow);
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 6px;
+  justify-items: start;
+  padding: 18px 20px 16px;
+  border: 1.5px solid var(--line);
+  border-top: 10px solid var(--tab);
   border-radius: var(--r-sheet);
   background: var(--paper);
-  box-shadow: 0 1px 0 var(--line), 0 14px 30px -24px rgba(31, 42, 68, 0.45);
-}
-
-.practice-set {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 14px 16px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--r-btn);
-  background: var(--paper);
   text-align: left;
+  box-shadow: 0 14px 30px -26px rgba(31, 42, 68, 0.5);
 }
 
-.practice-set:hover {
+.practice-stage.stage-word { --tab: var(--mint); }
+.practice-stage.stage-sentence { --tab: var(--sky); }
+
+.practice-stage:hover {
   border-color: var(--ink);
+  border-top-color: var(--tab);
 }
 
-.practice-set-text {
-  font-size: 28px;
+.practice-stage-label {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.practice-stage-sample {
+  font-size: 30px;
   line-height: 1.3;
   color: var(--ink);
+  opacity: 0.32;
   word-break: keep-all;
 }
 
-.practice-set-meta {
+.practice-stage-hint {
+  color: var(--ink-2);
+}
+
+.practice-stage-meta {
+  margin-top: 4px;
   font-size: 13px;
-  color: var(--ink-3);
-}
-
-.practice-custom {
-  margin-top: 20px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 10px;
-}
-
-.practice-custom label {
-  font-weight: 600;
-}
-
-.practice-custom input {
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-btn);
-  background: var(--paper);
-  font: inherit;
-  color: var(--ink);
-}
-
-.practice-custom small {
-  grid-column: 2 / -1;
   color: var(--ink-3);
 }
 
@@ -170,7 +133,7 @@
 .practice-recent-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto 4.5em;
+  grid-template-columns: 3em minmax(0, 1fr) auto auto 4.5em;
   align-items: baseline;
   gap: 14px;
   padding: 12px 6px;
@@ -183,6 +146,11 @@
 
 .practice-recent-row:hover {
   background: color-mix(in srgb, var(--yellow) 18%, transparent);
+}
+
+.practice-recent-stage {
+  font-size: 13px;
+  color: var(--ink-2);
 }
 
 .practice-recent-text {
@@ -240,9 +208,7 @@
 
 .practice-canvas {
   display: block;
-  border-radius: 4px;
-  background: var(--paper);
-  box-shadow: 0 1px 0 var(--line), 0 16px 34px -26px rgba(31, 42, 68, 0.5);
+  filter: drop-shadow(0 10px 14px rgba(31, 42, 68, 0.12));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -269,8 +235,67 @@
   background: rgba(255, 216, 77, 0.55);
 }
 
-.practice-grade {
+.practice-nav {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.practice-note {
+  margin: 10px 0 0;
+  text-align: right;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* ---------- 문제 진행 ---------- */
+.practice-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+
+.practice-progress-label {
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+.practice-progress-label strong {
+  font-size: 22px;
+  color: var(--ink);
+}
+
+.practice-dots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.practice-dot {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-dot.done {
+  background: color-mix(in srgb, var(--yellow) 55%, var(--paper));
+  border-color: color-mix(in srgb, var(--yellow) 80%, var(--ink));
+  color: var(--ink);
+}
+
+.practice-dot.current {
+  border: 2.5px solid var(--ink);
+  color: var(--ink);
 }
 
 /* ---------- 결과 ---------- */
@@ -382,9 +407,40 @@
   color: var(--danger);
 }
 
-.result-cells {
+.result-questions {
   list-style: none;
   margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+}
+
+.result-question-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.result-question-no {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.result-question-text {
+  font-weight: 600;
+}
+
+.result-question-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-cells {
+  list-style: none;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
@@ -400,8 +456,8 @@
 
 .result-canvas,
 .result-blank {
-  width: 88px;
-  height: 88px;
+  width: 72px;
+  height: 72px;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   background: var(--paper);
@@ -411,8 +467,6 @@
   display: grid;
   place-items: center;
   background: #eef1f6;
-  color: var(--ink-3);
-  font-size: 32px;
 }
 
 .result-score {
@@ -445,6 +499,10 @@
 .legend-target { background: #b9bfcc; }
 .legend-mine { background: #1f2a44; }
 
+.result-cell.blank .result-blank {
+  width: 24px;
+}
+
 /* 홈의 글씨 연습 카드 */
 button.practice-card {
   width: 100%;
@@ -470,13 +528,14 @@ button.practice-card:hover {
 
 @media (max-width: 520px) {
   .practice-main { padding-left: 16px; padding-right: 16px; }
-  .practice-custom { grid-template-columns: minmax(0, 1fr) auto; }
-  .practice-custom label { grid-column: 1 / -1; }
-  .practice-custom small { grid-column: 1 / -1; }
-  .practice-recent-row { grid-template-columns: minmax(0, 1fr) 4.5em; }
+  .practice-recent-row { grid-template-columns: 2.6em minmax(0, 1fr) 4.5em; }
   .practice-recent-font,
   .practice-recent-date { display: none; }
-  .practice-grade { margin-left: 0; flex: 1 1 100%; }
+  .practice-nav { margin-left: 0; flex: 1 1 100%; }
+  .practice-nav button { flex: 1; }
+  .practice-note { text-align: left; }
+  .practice-dot { width: 36px; height: 36px; }
   .result-canvas,
-  .result-blank { width: 72px; height: 72px; }
+  .result-blank { width: 60px; height: 60px; }
+  .result-cell.blank .result-blank { width: 16px; }
 }

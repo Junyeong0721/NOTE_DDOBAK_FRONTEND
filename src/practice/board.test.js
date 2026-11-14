@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildAttemptBody, canGrade, glyphLabel, pickInput, resultFromAttempt } from './board'
+import { buildAttemptBody, canGrade, glyphLabel, pickInput, resultFromAttempt, writtenFlags } from './board'
 import { layoutCells } from './cells'
 
 const stroke = { id: 's1', points: [[10, 10, 0.5, 0], [20, 20, 0.5, 5]] }
 const g = (total, extra = {}) => ({ total, shape: total / 2 + 0.04, position: total / 4, tilt: total / 4, empty: false, skipped: false, ...extra })
+const setScore = (t) => ({ total: t, shapePct: t + 1, positionPct: t + 2, tiltPct: t + 3, counted: 1 })
 
 describe('practice input', () => {
   it('ignores fingers once a pen has been used', () => {
@@ -14,48 +15,56 @@ describe('practice input', () => {
     expect(pickInput(true, 'pen')).toEqual({ accept: true, sawPen: true })
   })
 
-  it('allows grading only with a loaded font and some writing', () => {
-    const cells = layoutCells('가 나')
-    expect(canGrade(cells, [], true)).toBe(false)
-    expect(canGrade(cells, [[], undefined, []], true)).toBe(false)
-    expect(canGrade(cells, [[stroke]], false)).toBe(false) // 글꼴을 받기 전
-    expect(canGrade(cells, [[stroke]], true, true)).toBe(false) // 채점 중 (연타 방지)
-    expect(canGrade(cells, [[stroke]], true)).toBe(true)
+  it('allows grading only with a loaded font and some writing in any question', () => {
+    expect(canGrade([], true)).toBe(false)
+    expect(canGrade([[], [[], undefined]], true)).toBe(false)
+    expect(canGrade([[], [undefined, [stroke]]], false)).toBe(false) // 글꼴을 받기 전
+    expect(canGrade([[], [undefined, [stroke]]], true, true)).toBe(false) // 채점 중 (연타 방지)
+    expect(canGrade([[], [undefined, [stroke]]], true)).toBe(true)
+  })
+
+  it('tells which questions have writing', () => {
+    expect(writtenFlags([[[stroke]], [], undefined, [[], [stroke]]], 5)).toEqual([true, false, false, true, false])
   })
 })
 
 describe('attempt body', () => {
-  it('pairs every character with its strokes and score, blanks as null', () => {
-    const cells = layoutCells('가 나')
+  it('sends every question with its strokes and scores, blanks as null', () => {
+    const q1 = { text: '강의 실', cells: layoutCells('강의 실'), cellStrokes: [[stroke]], glyphScores: [g(80), g(0, { empty: true }), null, g(0, { empty: true })], score: setScore(27) }
+    const q2 = { text: '과제', cells: layoutCells('과제'), cellStrokes: [[stroke], [stroke]], glyphScores: [g(90), g(70)], score: setScore(80) }
     const body = buildAttemptBody({
-      setId: 'syllable-1', text: '가 나', fontId: 'hi-melody', guide: false, cells,
-      cellStrokes: [[stroke]],
-      glyphScores: [g(80), null, g(0, { empty: true })],
-      setScore: { total: 40, shapePct: 41, positionPct: 42, tiltPct: 43, counted: 2 },
+      stage: 'word', fontId: 'hi-melody', guide: false, questions: [q1, q2],
+      round: { total: 54, shapePct: 55, positionPct: 56, tiltPct: 57 },
       image: 'data:image/png;base64,AAA',
     })
-    expect(body.cells.length).toBe([...body.text].length)
-    expect(body.cells).toEqual([{ ch: '가', strokes: [stroke] }, null, { ch: '나', strokes: [] }])
-    expect(body.charScores[0]).toEqual({ total: 80, shape: 40, position: 20, tilt: 20, empty: false, skipped: false })
-    expect(body.charScores[1]).toBe(null)
-    expect(body.charScores[2].empty).toBe(true)
+    expect(body.stage).toBe('word')
     expect(body.fontLabel).toBe('하이멜로디')
-    expect(body.setId).toBe('syllable-1')
-    expect([body.totalScore, body.shapeScore, body.positionScore, body.tiltScore]).toEqual([40, 41, 42, 43])
+    expect(body.items.length).toBe(2)
+    expect(body.items[0].text).toBe('강의 실')
+    expect(body.items[0].cells).toEqual([{ ch: '강', strokes: [stroke] }, { ch: '의', strokes: [] }, null, { ch: '실', strokes: [] }])
+    expect(body.items[0].charScores[0]).toEqual({ total: 80, shape: 40, position: 20, tilt: 20, empty: false, skipped: false })
+    expect(body.items[0].charScores[2]).toBe(null)
+    expect(body.items[1].score).toEqual({ total: 80, shape: 81, position: 82, tilt: 83 })
+    expect([body.totalScore, body.shapeScore, body.positionScore, body.tiltScore]).toEqual([54, 55, 56, 57])
     expect(body.guide).toBe(false)
+    expect(body.image).toBe('data:image/png;base64,AAA')
   })
 
-  it('turns a saved attempt back into a result', () => {
+  it('turns a saved round back into a result', () => {
     const r = resultFromAttempt({
-      id: 3, setId: null, text: '가 나', fontId: 'gowun-dodum', guide: true,
-      cells: [{ ch: '가', strokes: [stroke] }, null, { ch: '나', strokes: [] }],
-      charScores: [g(80), null, g(0, { empty: true })],
+      id: 3, stage: 'syllable', text: '강\n물', fontId: 'gowun-dodum', guide: true,
+      items: [
+        { text: '강', cells: [{ ch: '강', strokes: [stroke] }], charScores: [g(80)], score: { total: 80 } },
+        { text: '물', cells: [{ ch: '물', strokes: [] }], charScores: [g(0, { empty: true })], score: { total: 0 } },
+      ],
       totalScore: 40, shapeScore: 41, positionScore: 42, tiltScore: 43, advice: null, adviceStatus: 'UNAVAILABLE',
     })
-    expect(r.cellStrokes).toEqual([[stroke], [], []])
-    expect(r.setScore.total).toBe(40)
+    expect(r.questions.map((q) => q.text)).toEqual(['강', '물'])
+    expect(r.questions[0].cellStrokes).toEqual([[stroke]])
+    expect(r.questions[1].score.total).toBe(0)
+    expect(r.round.total).toBe(40)
     expect(r.adviceState).toBe('unavailable')
-    expect(resultFromAttempt({ text: '가', cells: [null], charScores: [null], advice: '곧게', adviceStatus: 'OK' }).adviceState).toBe('ok')
+    expect(resultFromAttempt({ items: [], advice: '곧게', adviceStatus: 'OK' }).adviceState).toBe('ok')
   })
 
   it('labels each glyph', () => {
