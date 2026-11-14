@@ -8,7 +8,7 @@ const jitter = (i) => JITTER[i % JITTER.length]
 const FEATURES = [
   { color: 'var(--yellow)', title: '글씨 보정', text: '한 줄을 다 쓰면 고른 글씨체로 바꾼 보정안을 보여 줘요. 마음에 안 드는 글자만 원래대로 둘 수도 있어요.' },
   { color: 'var(--mint)', title: '노트 정리', text: '기울어진 줄은 반듯하게, 들쭉날쭉한 줄 시작은 가지런하게 맞춰요.' },
-  { color: 'var(--sky)', title: '글씨 연습', text: '같은 글씨체를 따라 쓰면서 내 손글씨를 다듬어요.', soon: true },
+  { color: 'var(--sky)', title: '글씨 연습', text: '고른 글씨체를 따라 쓰면 점수와 조언으로 내 손글씨를 다듬어요.' },
 ]
 
 export default function Landing({ onStart, onLogin }) {
@@ -46,7 +46,7 @@ export default function Landing({ onStart, onLogin }) {
         <ul className="landing-features">
           {FEATURES.map((f) => (
             <li key={f.title} style={{ '--tab': f.color }}>
-              <h2>{f.title}{f.soon && <span className="soon">곧 열려요</span>}</h2>
+              <h2>{f.title}</h2>
               <p>{f.text}</p>
             </li>
           ))}
