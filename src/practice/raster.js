@@ -7,12 +7,15 @@ import { SCORE_TUNING, emptyGrid } from './score'
 export const TARGET_COLOR = '#b9bfcc' // 겹쳐 보기의 목표 글자
 export const INK_COLOR = '#1f2a44' // 내 글씨 (노트의 남색 잉크)
 
+// 화면 문서의 캔버스를 쓴다: 앱이 받아 둔 글씨체(@font-face)를 확실히 쓰기 위해서 (OffscreenCanvas는 문서가 없을 때만)
 function makeCanvas(w, h) {
-  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h)
-  const c = document.createElement('canvas')
-  c.width = w
-  c.height = h
-  return c
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    return c
+  }
+  return new OffscreenCanvas(w, h)
 }
 
 /** 글꼴마다 한글 높이가 달라서, '가'의 실제 높이가 칸의 80%가 되는 글자 크기를 구한다 */
