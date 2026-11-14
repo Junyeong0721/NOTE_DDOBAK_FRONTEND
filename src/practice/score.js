@@ -4,13 +4,14 @@
 /** 채점 기준값. 실제 손글씨로 확인하면서 여기만 조정한다 */
 export const SCORE_TUNING = {
   GRID: 64, // 칸 하나를 나누는 모눈 수
-  NEAR: 3, // "근처"로 치는 거리(모눈)
-  F_MIN: 0.4, // 이 일치도 이하는 모양 0점
-  F_MAX: 0.95, // 이 일치도 이상은 모양 만점
+  NEAR: 6, // 잉크가 상대 획에서 이만큼(모눈) 떨어지면 0점. 딱 겹치면 1점, 그 사이는 거리에 비례
+  F_MIN: 0.45, // 이 일치도 이하는 모양 0점
+  F_MAX: 0.9, // 이 일치도 이상은 모양 만점
   CENTER_MAX: 0.25, // 중심이 칸 한 변의 이만큼 벗어나면 위치 0점
   SIZE_MAX: 1.6, // 크기가 이 배(또는 1/배) 다르면 크기 0점
   TILT_FREE_DEG: 3, // 이 각도까지는 기울기 만점
   TILT_MAX_DEG: 20, // 이 각도부터 기울기 0점
+  FAR_MIN: 3, // 가장 동떨어진 잉크가 이 거리 안이면 감점 없음
   FAR_MAX: 12, // 가장 동떨어진 잉크가 이만큼(모눈) 떨어져 있으면 모양 점수를 절반으로 (짧은 획을 빼먹거나 엉뚱한 획을 그은 경우)
   FAR_WEIGHT: 0.5,
   SHEAR_RANGE: 0.5, // 기울기를 찾는 범위(가로 밀기 비율)
@@ -134,14 +135,15 @@ export function distanceMap(grid) {
   return d
 }
 
+/** 잉크가 상대 획에 얼마나 붙어 있는지 0~1: 겹치면 1, near 이상 떨어지면 0, 그 사이는 거리에 비례 */
 function nearRatio(grid, dist, near) {
-  let ink = 0, hit = 0
+  let ink = 0, sum = 0
   for (let i = 0; i < grid.data.length; i++) {
     if (!grid.data[i]) continue
     ink++
-    if (dist[i] <= near) hit++
+    if (dist[i] < near) sum += 1 - dist[i] / near
   }
-  return ink === 0 ? 0 : hit / ink
+  return ink === 0 ? 0 : sum / ink
 }
 
 /** 잉크 중 상대에게서 가장 동떨어진 부분의 거리 (모눈 몇 개짜리 잡티는 무시하도록 98번째 백분위) */
@@ -159,7 +161,7 @@ function farDistance(grid, dist) {
  */
 export function farness(mine, target, tuning = SCORE_TUNING, targetDist = distanceMap(target)) {
   const far = Math.max(farDistance(mine, targetDist), farDistance(target, distanceMap(mine)))
-  return clamp01((far - tuning.NEAR) / (tuning.FAR_MAX - tuning.NEAR))
+  return clamp01((far - tuning.FAR_MIN) / (tuning.FAR_MAX - tuning.FAR_MIN))
 }
 
 /**

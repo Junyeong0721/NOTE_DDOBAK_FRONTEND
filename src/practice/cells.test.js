@@ -24,6 +24,20 @@ describe('practice cells', () => {
     expect(boardSize(layoutCells('가나'))).toEqual({ width: 200, height: 100 })
   })
 
+  it('uses fewer columns on a narrow screen', () => {
+    const cells = layoutCells('가나다라마', 4)
+    expect(cells[4]).toEqual({ index: 4, ch: '마', row: 1, col: 0, x: 0, y: 100, blank: false })
+    expect(boardSize(cells)).toEqual({ width: 400, height: 200 })
+    expect(cellAt(cells, 50, 150)).toBe(4)
+    expect(cellAt(cells, 450, 50)).toBe(-1)
+  })
+
+  it('treats anything but Hangul as a cell you cannot write in', () => {
+    const cells = layoutCells('가a1ㄱㅏ!')
+    expect(cells.map((c) => c.blank)).toEqual([false, true, true, false, false, true])
+    expect(cellAt(cells, 150, 50)).toBe(-1)
+  })
+
   it('finds the cell under a point', () => {
     const cells = layoutCells('가나 다')
     expect(cellAt(cells, 150, 50)).toBe(1)

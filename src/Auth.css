@@ -473,7 +473,7 @@
 .practice-card {
   padding: 20px 22px;
   border-radius: var(--r-sheet);
-  border: 1.5px dashed var(--line-strong);
+  border: 1.5px solid var(--line);
 }
 
 .practice-card p {
