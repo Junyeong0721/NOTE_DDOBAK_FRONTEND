@@ -171,7 +171,7 @@ function drawFocus(ctx, box, scale) {
 const FALLBACK_RATIO = 0.8
 const ratioCache = new Map()
 
-function hangulRatio(ctx, family) {
+export function hangulRatio(ctx, family) {
   if (ratioCache.has(family)) return ratioCache.get(family)
   ctx.font = `100px ${family}`
   const m = ctx.measureText('가')
