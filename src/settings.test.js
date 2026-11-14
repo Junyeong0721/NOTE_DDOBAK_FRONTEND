@@ -36,4 +36,12 @@ describe('settings', () => {
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
     expect(() => saveSettings({ fontId: 'hi-melody', autoSuggest: true })).not.toThrow()
   })
+
+  it('keeps an added extra font but drops it once it is removed', () => {
+    store.set('ddobak.fonts', JSON.stringify({ added: ['gungsuh'] }))
+    saveSettings({ fontId: 'gungsuh', autoSuggest: true })
+    expect(loadSettings().fontId).toBe('gungsuh')
+    store.set('ddobak.fonts', JSON.stringify({ added: [] }))
+    expect(loadSettings().fontId).toBe('gowun-dodum')
+  })
 })
