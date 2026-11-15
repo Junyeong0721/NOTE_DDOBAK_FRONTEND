@@ -58,6 +58,13 @@
   line-height: 1.4;
 }
 
+.practice-font.more {
+  border-style: dashed;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
 .practice-font.selected {
   border-color: var(--ink);
   background: linear-gradient(transparent 58%, rgba(255, 216, 77, 0.6) 58%), var(--paper);

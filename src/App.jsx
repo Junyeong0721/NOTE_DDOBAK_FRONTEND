@@ -9,6 +9,7 @@ import NoteEditor from './components/NoteEditor'
 import NoteGrid from './components/NoteGrid'
 import SettingsDialog from './components/SettingsDialog'
 import { ALL, UNFILED, countByFolder, filterNotes } from './note/filterNotes'
+import { FONTS_CHANGED } from './note/myFonts'
 import { loadSettings, saveSettings } from './settings'
 import Practice from './components/practice/Practice'
 import './App.css'
@@ -32,6 +33,17 @@ function App({ user, onLogout }) {
   const [settings, setSettings] = useState(loadSettings) // { fontId, autoSuggest } — 이 기기에 저장
   const [showSettings, setShowSettings] = useState(false)
   const [view, setView] = useState('home') // home | library | practice
+
+  // 쓰던 글씨체를 [글씨체 더 보기]에서 빼면(연습 화면에서 뺐더라도) 노트 보정 글씨체도 기본으로 돌린다
+  useEffect(() => {
+    const onFonts = () => {
+      const fresh = loadSettings() // 뺀 글씨체면 기본 글씨체로 읽힌다
+      setSettings((s) => (s.fontId === fresh.fontId ? s : { ...s, fontId: fresh.fontId }))
+      saveSettings(fresh)
+    }
+    window.addEventListener(FONTS_CHANGED, onFonts)
+    return () => window.removeEventListener(FONTS_CHANGED, onFonts)
+  }, [])
 
   const changeSettings = useCallback((next) => {
     setSettings(next)

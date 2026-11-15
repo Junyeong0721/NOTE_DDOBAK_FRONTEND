@@ -533,3 +533,129 @@
     gap: 22px 14px;
   }
 }
+
+/* ---------- 글씨체 더 보기 ---------- */
+.font-more {
+  align-self: flex-start;
+  margin-top: 4px;
+  border-style: dashed;
+}
+
+.gallery-backdrop {
+  z-index: 60;
+}
+
+.gallery-dialog {
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.gallery-head {
+  padding: 22px 24px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gallery-head p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.gallery-body {
+  overflow-y: auto;
+  padding: 6px 24px 18px;
+}
+
+.gallery-group h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.gallery-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.gallery-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-btn);
+  background: var(--paper);
+}
+
+.gallery-item.added {
+  border-color: color-mix(in srgb, var(--yellow) 70%, var(--ink));
+  background: color-mix(in srgb, var(--yellow) 10%, var(--paper));
+}
+
+.gallery-sample {
+  grid-column: 1;
+  font-size: 26px;
+  line-height: 1.3;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-sample.waiting {
+  color: transparent;
+}
+
+.gallery-name {
+  grid-column: 1;
+  font-size: 13px;
+}
+
+.gallery-badge,
+.gallery-toggle {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.gallery-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 60%, var(--paper));
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.gallery-toggle {
+  min-width: 5.5em;
+}
+
+.gallery-toggle.on {
+  border-color: var(--ink);
+  background: rgba(255, 216, 77, 0.6);
+  font-weight: 600;
+}
+
+.gallery-dialog .dialog-actions {
+  padding: 12px 24px 18px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 520px) {
+  .gallery-head,
+  .gallery-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .gallery-sample {
+    font-size: 21px;
+  }
+}
