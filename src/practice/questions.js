@@ -7,7 +7,17 @@ export const STAGES = [
   { id: 'sentence', label: '문장', hint: '필기에 자주 쓰는 짧은 문장' },
 ]
 
-export const stageById = (id) => STAGES.find((s) => s.id === id) ?? null
+/** 연습에서 점수가 낮았던 글자 (서버 /api/practice/weak). 문제는 약점 상위 WEAK_POOL자에서 뽑는다 */
+export const WEAK_STAGE = { id: 'weak', label: '내 약점 글자', hint: '연습에서 점수가 낮았던 글자' }
+export const WEAK_POOL = 15
+
+export const stageById = (id) => (id === WEAK_STAGE.id ? WEAK_STAGE : STAGES.find((s) => s.id === id) ?? null)
+
+/** 약점 목록으로 문제를 뽑을 수 있는지 */
+export const canDrawWeak = (weak) => (weak?.length ?? 0) >= ROUND_SIZE
+
+/** 약점 글자 목록 → 뽑을 글자들 (약점이 큰 것부터 WEAK_POOL자) */
+export const weakPool = (weak) => (weak ?? []).slice(0, WEAK_POOL).map((w) => w.ch)
 
 const SYLLABLES = `
 가 각 간 갈 감 강 개 거 건 걸 게 겨 결 경 계 고 곡 공 과 관 광 교 구 국 군 권 그 근 글 금 기 길 김 깊 까 꼭 꽃 꿈 끝
@@ -46,9 +56,10 @@ export const POOLS = { syllable: SYLLABLES, word: WORDS, sentence: SENTENCES }
  * 한 판의 문제 5개를 겹치지 않게 뽑는다.
  * avoid(바로 전 판 문제)는 목록이 넉넉하면 뽑지 않는다.
  * random은 테스트에서 같은 결과를 내려고 바꿔 끼울 수 있게 받는다.
+ * pool을 주면 그 목록에서 뽑는다 (약점 글자).
  */
-export function drawRound(stageId, { avoid = [], random = Math.random, size = ROUND_SIZE } = {}) {
-  const pool = POOLS[stageId]
+export function drawRound(stageId, { avoid = [], random = Math.random, size = ROUND_SIZE, pool: given = null } = {}) {
+  const pool = given ?? POOLS[stageId]
   if (!pool) throw new Error(`unknown stage: ${stageId}`)
   const skip = new Set(avoid)
   const fresh = pool.filter((q) => !skip.has(q))

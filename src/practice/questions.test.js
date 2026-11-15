@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { POOLS, ROUND_SIZE, STAGES, drawRound, stageById } from './questions'
+import { POOLS, ROUND_SIZE, STAGES, WEAK_STAGE, canDrawWeak, drawRound, stageById, weakPool } from './questions'
 import { isHangul } from './cells'
 
 /** 같은 수열을 내는 난수 (테스트용) */
@@ -63,5 +63,20 @@ describe('practice questions', () => {
     const round = drawRound('sentence', { avoid: POOLS.sentence.slice(0, 48), random: seeded(5) })
     expect(new Set(round).size).toBe(ROUND_SIZE)
     expect(() => drawRound('jamo')).toThrow()
+  })
+
+  it('draws weak-character rounds from the weakest fifteen', () => {
+    expect(stageById('weak')).toBe(WEAK_STAGE)
+    const weak = '를읽값닭꽃앉많없넓흙삶젊밟핥곬옳'.split('').map((ch, i) => ({ ch, average: 30 + i, count: 2, weakest: 'shape' }))
+    expect(canDrawWeak(weak.slice(0, 4))).toBe(false)
+    expect(canDrawWeak(weak)).toBe(true)
+    expect(canDrawWeak(null)).toBe(false)
+    const pool = weakPool(weak)
+    expect(pool.length).toBe(15)
+    expect(pool[0]).toBe('를')
+    const round = drawRound('weak', { pool, random: seeded(4) })
+    expect(new Set(round).size).toBe(ROUND_SIZE)
+    expect(round.every((ch) => pool.includes(ch))).toBe(true)
+    expect(round.includes('옳')).toBe(false) // 16번째는 뽑지 않음
   })
 })

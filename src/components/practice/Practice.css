@@ -76,7 +76,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
@@ -100,6 +100,58 @@
 
 .practice-stage.stage-word { --tab: var(--mint); }
 .practice-stage.stage-sentence { --tab: var(--sky); }
+.practice-stage.stage-weak { --tab: var(--pink); }
+
+.practice-stage:disabled {
+  cursor: default;
+  border-top-color: color-mix(in srgb, var(--tab) 45%, var(--paper));
+  box-shadow: none;
+}
+
+.practice-stage:disabled .practice-stage-sample {
+  opacity: 0.18;
+}
+
+.practice-stage:disabled:hover {
+  border-color: var(--line);
+}
+
+.practice-weak {
+  margin-top: 12px;
+}
+
+.practice-weak-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 16px;
+}
+
+.practice-weak-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.practice-weak-ch {
+  width: 1.4em;
+  font-size: 28px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink);
+}
+
+.practice-weak-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
 
 .practice-stage:hover {
   border-color: var(--ink);
@@ -121,6 +173,7 @@
 
 .practice-stage-hint {
   color: var(--ink-2);
+  word-break: keep-all;
 }
 
 .practice-stage-meta {

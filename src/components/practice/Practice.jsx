@@ -3,7 +3,7 @@ import { saveAttempt } from '../../api/practice'
 import { renderAdviceImage } from '../../practice/adviceImage'
 import { buildAttemptBody, resultFromAttempt } from '../../practice/board'
 import { loadPracticeFont, savePracticeFont } from '../../practice/practiceFont'
-import { drawRound } from '../../practice/questions'
+import { WEAK_STAGE, drawRound } from '../../practice/questions'
 import Logo from '../Logo'
 import PracticeBoard from './PracticeBoard'
 import PracticeHome from './PracticeHome'
@@ -20,6 +20,7 @@ export default function Practice({ onExit }) {
   const [review, setReview] = useState(false)
   const [roundNo, setRoundNo] = useState(0) // 판마다 쓰기 화면을 새로
   const lastTexts = useRef({}) // 단계별 바로 전 판 문제 (다음 판에서 겹치지 않게)
+  const weakPoolRef = useRef([]) // 약점 글자 단계에서 뽑을 글자 (고르기 화면에서 받은 것)
   const saveToken = useRef(0) // 가장 최근 채점만 화면에 반영
 
   useEffect(() => () => {
@@ -31,9 +32,13 @@ export default function Practice({ onExit }) {
     savePracticeFont(id)
   }, [])
 
-  const start = (stageId) => {
+  const start = (stageId, pool) => {
     saveToken.current++
-    const next = drawRound(stageId, { avoid: lastTexts.current[stageId] ?? [] })
+    if (pool) weakPoolRef.current = pool
+    const next = drawRound(stageId, {
+      avoid: lastTexts.current[stageId] ?? [],
+      pool: stageId === WEAK_STAGE.id ? weakPoolRef.current : null,
+    })
     lastTexts.current[stageId] = next
     setStage(stageId)
     setTexts(next)

@@ -14,3 +14,6 @@ export const getAttempt = (id) => request(`${BASE}/attempts/${id}`)
 
 /** 연습한 글마다 최고 점수와 횟수 */
 export const listBest = () => request(`${BASE}/best`)
+
+/** 약점 글자: 최근 30일 연습 평균이 낮은 글자부터 [{ ch, average, count, weakest }] */
+export const listWeak = () => request(`${BASE}/weak`)
