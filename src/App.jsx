@@ -10,6 +10,7 @@ import NoteGrid from './components/NoteGrid'
 import SettingsDialog from './components/SettingsDialog'
 import { ALL, UNFILED, countByFolder, filterNotes } from './note/filterNotes'
 import { loadSettings, saveSettings } from './settings'
+import Practice from './components/practice/Practice'
 import './App.css'
 
 function emptyMessage({ selected, query, total }) {
@@ -30,7 +31,7 @@ function App({ user, onLogout }) {
   const [dialog, setDialog] = useState(null) // { folder } | { folder: null }
   const [settings, setSettings] = useState(loadSettings) // { fontId, autoSuggest } — 이 기기에 저장
   const [showSettings, setShowSettings] = useState(false)
-  const [view, setView] = useState('home') // home | library
+  const [view, setView] = useState('home') // home | library | practice
 
   const changeSettings = useCallback((next) => {
     setSettings(next)
@@ -129,6 +130,10 @@ function App({ user, onLogout }) {
   const settingsDialog = showSettings && <SettingsDialog settings={settings} onChange={changeSettings} onClose={() => setShowSettings(false)} />
   const openNote = (id) => setOpen({ id, folderId: notes.find((n) => n.id === id)?.folderId ?? null })
 
+  if (view === 'practice') {
+    return <Practice onExit={() => setView('home')} />
+  }
+
   if (view === 'home') {
     return (
       <>
@@ -141,6 +146,7 @@ function App({ user, onLogout }) {
           onOpen={openNote}
           onCreate={() => handleCreate(null)}
           onShowAll={() => setView('library')}
+          onPractice={() => setView('practice')}
           onSettings={() => setShowSettings(true)}
           onLogout={onLogout}
         />

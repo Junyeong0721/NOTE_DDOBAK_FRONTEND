@@ -5,8 +5,8 @@ import Logo from './Logo'
 const dateFormat = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 const RECENT = 4
 
-/** 로그인 후 첫 화면: 최근 노트 이어 쓰기, 새 노트, 모든 노트, 글씨 연습(준비 중) */
-export default function Home({ user, notes, folders, loading, error, onOpen, onCreate, onShowAll, onSettings, onLogout }) {
+/** 로그인 후 첫 화면: 최근 노트 이어 쓰기, 새 노트, 모든 노트, 글씨 연습 */
+export default function Home({ user, notes, folders, loading, error, onOpen, onCreate, onShowAll, onPractice, onSettings, onLogout }) {
   const folderById = new Map(folders.map((f) => [f.id, f]))
   const recent = notes.slice(0, RECENT)
 
@@ -59,9 +59,11 @@ export default function Home({ user, notes, folders, loading, error, onOpen, onC
           )}
         </section>
 
-        <section className="home-section practice-card" aria-labelledby="practice-title">
-          <h2 id="practice-title">글씨 연습<span className="soon">곧 열려요</span></h2>
-          <p>설정에서 고른 글씨체를 따라 쓰며 연습하는 공간이에요.</p>
+        <section className="home-section" aria-labelledby="practice-title">
+          <button type="button" className="practice-card" onClick={onPractice}>
+            <h2 id="practice-title">글씨 연습</h2>
+            <p>고른 글씨체를 칸에 따라 쓰면 점수와 조언을 알려 드려요.</p>
+          </button>
         </section>
       </main>
     </div>

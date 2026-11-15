@@ -1,0 +1,541 @@
+/* 글씨 연습: 고르기 · 쓰기 · 결과. 앱과 같은 흰 종이 + 남색 잉크 + 형광펜/바인더 인덱스 */
+
+.practice {
+  min-height: 100dvh;
+}
+
+.practice-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 8px 24px 72px;
+}
+
+.practice-title {
+  margin: 8px 0 6px;
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.practice-lead {
+  margin: 0;
+  max-width: 44em;
+  color: var(--ink-2);
+}
+
+.practice-section {
+  margin-top: 36px;
+}
+
+.practice-section h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- 글씨체 고르기 ---------- */
+.practice-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.practice-font {
+  padding: 6px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.practice-font.selected {
+  border-color: var(--ink);
+  background: linear-gradient(transparent 58%, rgba(255, 216, 77, 0.6) 58%), var(--paper);
+}
+
+/* ---------- 단계 카드: 바인더 인덱스 색 ---------- */
+.practice-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.practice-stage {
+  --tab: var(--yellow);
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 6px;
+  justify-items: start;
+  padding: 18px 20px 16px;
+  border: 1.5px solid var(--line);
+  border-top: 10px solid var(--tab);
+  border-radius: var(--r-sheet);
+  background: var(--paper);
+  text-align: left;
+  box-shadow: 0 14px 30px -26px rgba(31, 42, 68, 0.5);
+}
+
+.practice-stage.stage-word { --tab: var(--mint); }
+.practice-stage.stage-sentence { --tab: var(--sky); }
+
+.practice-stage:hover {
+  border-color: var(--ink);
+  border-top-color: var(--tab);
+}
+
+.practice-stage-label {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.practice-stage-sample {
+  font-size: 30px;
+  line-height: 1.3;
+  color: var(--ink);
+  opacity: 0.32;
+  word-break: keep-all;
+}
+
+.practice-stage-hint {
+  color: var(--ink-2);
+}
+
+.practice-stage-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* ---------- 최근 연습 ---------- */
+.practice-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.practice-recent-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr) auto auto 4.5em;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 6px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.practice-recent-row:hover {
+  background: color-mix(in srgb, var(--yellow) 18%, transparent);
+}
+
+.practice-recent-stage {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.practice-recent-text {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.practice-recent-font,
+.practice-recent-date {
+  font-size: 13px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.practice-recent-score {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 쓰기 ---------- */
+.practice-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+
+.practice-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+}
+
+.practice-guide input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ink);
+}
+
+.practice-hint {
+  margin: 14px 0 12px;
+  min-height: 1.5em;
+  color: var(--ink-2);
+}
+
+.practice-board {
+  display: flex;
+  justify-content: center;
+}
+
+.practice-canvas {
+  display: block;
+  filter: drop-shadow(0 10px 14px rgba(31, 42, 68, 0.12));
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: crosshair;
+}
+
+.practice-canvas.erasing {
+  cursor: cell;
+  outline: 2px dashed var(--danger);
+  outline-offset: 3px;
+}
+
+.practice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.practice-actions button.selected {
+  border-color: var(--ink);
+  background: rgba(255, 216, 77, 0.55);
+}
+
+.practice-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.practice-note {
+  margin: 10px 0 0;
+  text-align: right;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* ---------- 문제 진행 ---------- */
+.practice-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+
+.practice-progress-label {
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+.practice-progress-label strong {
+  font-size: 22px;
+  color: var(--ink);
+}
+
+.practice-dots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.practice-dot {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-dot.done {
+  background: color-mix(in srgb, var(--yellow) 55%, var(--paper));
+  border-color: color-mix(in srgb, var(--yellow) 80%, var(--ink));
+  color: var(--ink);
+}
+
+.practice-dot.current {
+  border: 2.5px solid var(--ink);
+  color: var(--ink);
+}
+
+/* ---------- 결과 ---------- */
+.result-font {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.result-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 40px;
+  padding: 22px 26px;
+  border-radius: var(--r-sheet);
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--line), 0 14px 30px -24px rgba(31, 42, 68, 0.45);
+}
+
+.result-total {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.result-total strong {
+  padding: 0 6px;
+  font-size: clamp(56px, 10vw, 84px);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(transparent 62%, rgba(255, 216, 77, 0.7) 62%);
+}
+
+.result-total span {
+  font-size: 22px;
+  color: var(--ink-2);
+}
+
+.result-bars {
+  flex: 1 1 260px;
+  display: grid;
+  gap: 10px;
+}
+
+.result-bar {
+  display: grid;
+  grid-template-columns: 5em minmax(0, 1fr) 2.5em;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-bar-label {
+  color: var(--ink-2);
+}
+
+.result-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, var(--paper));
+  overflow: hidden;
+}
+
+.result-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+
+.result-bar-pct {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-advice {
+  margin-top: 16px;
+  padding: 16px 20px;
+  border-left: 6px solid var(--mint);
+  border-radius: 0 var(--r-btn) var(--r-btn) 0;
+  background: color-mix(in srgb, var(--mint) 12%, var(--paper));
+}
+
+.result-advice h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.result-advice p {
+  margin: 0;
+  max-width: 44em;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.result-advice-wait,
+.result-advice-none {
+  color: var(--ink-2);
+}
+
+.result-advice small {
+  display: block;
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.result-questions {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+}
+
+.result-question-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.result-question-no {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.result-question-text {
+  font-weight: 600;
+}
+
+.result-question-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-cells {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 6px;
+}
+
+.result-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-canvas,
+.result-blank {
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--paper);
+}
+
+.result-blank {
+  display: grid;
+  place-items: center;
+  background: #eef1f6;
+}
+
+.result-score {
+  min-height: 1.4em;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.result-legend i {
+  width: 22px;
+  height: 5px;
+  border-radius: 999px;
+}
+
+.result-legend i + i,
+.legend-mine {
+  margin-left: 12px;
+}
+
+.legend-target { background: #b9bfcc; }
+.legend-mine { background: #1f2a44; }
+
+.result-cell.blank .result-blank {
+  width: 24px;
+}
+
+/* 홈의 글씨 연습 카드 */
+button.practice-card {
+  width: 100%;
+  display: block;
+  text-align: left;
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-left: 8px solid var(--sky);
+  font: inherit;
+  color: inherit;
+}
+
+button.practice-card:hover {
+  border-color: var(--ink);
+  border-left-color: var(--sky);
+}
+
+.practice-card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .practice-main { padding-left: 16px; padding-right: 16px; }
+  .practice-recent-row { grid-template-columns: 2.6em minmax(0, 1fr) 4.5em; }
+  .practice-recent-font,
+  .practice-recent-date { display: none; }
+  .practice-nav { margin-left: 0; flex: 1 1 100%; }
+  .practice-nav button { flex: 1; }
+  .practice-note { text-align: left; }
+  .practice-dot { width: 36px; height: 36px; }
+  .result-canvas,
+  .result-blank { width: 60px; height: 60px; }
+  .result-cell.blank .result-blank { width: 16px; }
+}
