@@ -50,6 +50,7 @@ export default function NoteGrid({ notes, folders, onOpen, onMove, onDelete }) {
                 {folder && <span className="thumb-tab" style={{ background: FOLDER_COLORS[folder.color] }} />}
               </span>
               <span className="note-title">{note.title}</span>
+              {note.summary && <span className="note-summary">{note.summary.split('\n')[0]}</span>}
               <span className="note-date">{dateFormat.format(new Date(note.updatedAt))}</span>
             </button>
             <button

@@ -47,6 +47,7 @@ export default function Home({ user, notes, folders, loading, error, onOpen, onC
                     <button type="button" className="recent-note" onClick={() => onOpen(n.id)} style={{ '--tab': folder ? FOLDER_COLORS[folder.color] : 'var(--line-strong)' }}>
                       <span className="recent-thumb">{n.thumbnail && <img src={n.thumbnail} alt="" />}</span>
                       <span className="recent-title">{n.title}</span>
+                      {n.summary && <span className="note-summary">{n.summary.split('\n')[0]}</span>}
                       <span className="recent-meta">
                         <span className="recent-folder">{folder ? folder.name : '미분류'}</span>
                         <span>{dateFormat.format(new Date(n.updatedAt))}</span>

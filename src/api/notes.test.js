@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { createNote, deleteNote, getNote, listNotes, EMPTY_CONTENT } from './notes'
+import { createNote, deleteNote, getNote, listNotes, summarizeNote, EMPTY_CONTENT } from './notes'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -74,5 +74,14 @@ describe('notes api: folders and thumbnails', () => {
     await expect(listNotes()).rejects.toThrow('로그인이 필요합니다.')
     expect(seen).toEqual(['401'])
     delete globalThis.window
+  })
+
+  it('summarizeNote posts the page images and returns the summary', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ summary: ['가'], title: '제목', summarizedAt: 'x' }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const res = await summarizeNote(7, ['data:image/png;base64,AA'])
+    expect(fetchMock).toHaveBeenCalledWith('/api/notes/7/summary', expect.objectContaining({ method: 'POST' }))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ pages: ['data:image/png;base64,AA'] })
+    expect(res.title).toBe('제목')
   })
 })
