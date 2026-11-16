@@ -228,6 +228,15 @@
   line-height: 1.35;
 }
 
+/* AI 요약 첫 줄 */
+.note-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
 .note-date {
   color: var(--ink-3);
   font-size: 13px;

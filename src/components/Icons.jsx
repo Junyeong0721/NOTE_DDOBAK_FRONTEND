@@ -58,3 +58,9 @@ export const SettingsIcon = () => (
 export const FontIcon = () => (
   <svg {...base}><path d="M4 19l5-14h1l5 14" /><path d="M6.2 13.5h6.6" /><path d="M17 11v8" /><path d="M15 11.5c1.5-1 4-1 4 1.2V19" /></svg>
 )
+export const SummaryIcon = () => (
+  <svg {...base}><path d="M4 6h9M4 11h7M4 16h5" /><path d="M17.5 12.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" /><path d="M17 4.5l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5z" /></svg>
+)
+export const CloseIcon = () => (
+  <svg {...base}><path d="M6 6l12 12M18 6L6 18" /></svg>
+)
