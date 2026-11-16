@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { getAttempt, listAttempts, listBest, saveAttempt } from './practice'
+import { getAttempt, listAttempts, listBest, listWeak, saveAttempt } from './practice'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -19,7 +19,8 @@ describe('practice api', () => {
     await listAttempts()
     await getAttempt(3)
     await listBest()
-    expect(f.mock.calls.map((c) => c[0])).toEqual(['/api/practice/attempts', '/api/practice/attempts/3', '/api/practice/best'])
+    await listWeak()
+    expect(f.mock.calls.map((c) => c[0])).toEqual(['/api/practice/attempts', '/api/practice/attempts/3', '/api/practice/best', '/api/practice/weak'])
   })
 
   it('tells the app when the login is gone', async () => {
