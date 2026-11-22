@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FOLDER_COLORS } from '../api/folders'
-import { getNote, updateNote } from '../api/notes'
+import { getNote, summarizeNote, updateNote } from '../api/notes'
 import { recognizeLine, ocrLabel, ocrErrorLabel } from '../api/ocr'
 import { parseContent, serializeContent } from '../note/content'
+import { ensureFont } from '../note/fonts'
 import { buildCorrection, correctedStrokeIds, pruneCorrections, removeCorrections, toggleChar } from '../note/correction'
 import { canRedo, canUndo, createHistory, push, redo, undo } from '../note/history'
 import { deleteStrokes, selectionBBox, setStrokesKind } from '../note/lasso'
 import { renderLineToPng } from '../note/lineImage'
 import { groupLines, isLineEnd } from '../note/lines'
+import { isSummaryStale, pagesToSummarize, renderSummaryPage, summaryLines } from '../note/summary'
 import { renderThumbnail } from '../note/thumbnail'
 import { tidyPage, untidyPage } from '../note/tidy'
 import { HIGHLIGHTER_COLORS, PEN_COLORS, isHighlighter } from '../note/tools'
@@ -16,9 +18,10 @@ import { clampZoom, zoomAround } from '../note/zoom'
 import { DEFAULT_SETTINGS } from '../settings'
 import CorrectionBar from './CorrectionBar'
 import SettingsDialog from './SettingsDialog'
-import { BackIcon, RedoIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
+import { BackIcon, RedoIcon, SummaryIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
 import NoteCanvas from './NoteCanvas'
 import SelectionBar from './SelectionBar'
+import SummaryPanel from './SummaryPanel'
 import ToolPalette from './ToolPalette'
 import './NoteEditor.css'
 
@@ -69,6 +72,15 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
   const [bar, setBar] = useState(null) // 보정 막대: { mode: 'suggest', pageIndex, correction } | { mode: 'edit', pageIndex, correctionId } | { mode: 'busy' | 'message' }
   const [zoom, setZoom] = useState(1)
   const [baseWidth, setBaseWidth] = useState(MAX_PAGE_WIDTH)
+  // AI 요약: summary = { lines, at } (서버에 저장된 것), suggestion = 제목 추천
+  const [summary, setSummary] = useState(null)
+  const [summaryState, setSummaryState] = useState('idle') // idle | busy | error
+  const [summaryError, setSummaryError] = useState('')
+  const [summaryPages, setSummaryPages] = useState(0)
+  const [suggestion, setSuggestion] = useState(null)
+  const [showSummary, setShowSummary] = useState(false)
+  const [staleOnLoad, setStaleOnLoad] = useState(false)
+  const summaryBaseRef = useRef(undefined) // 요약할 때(또는 열 때)의 페이지 — 이후 바뀌면 "요약 뒤에 바뀜"
 
   const dirtyRef = useRef(false)
   const scrollRef = useRef(null)
@@ -95,6 +107,9 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         if (cancelled) return
         const content = parseContent(note.content)
         setTitle(note.title)
+        const lines = summaryLines(note.summary)
+        setSummary(lines.length > 0 ? { lines, at: note.summarizedAt } : null)
+        setStaleOnLoad(isSummaryStale(note.updatedAt, note.summarizedAt))
         setMeta({ version: content.version, page: content.page })
         setHistory(createHistory(content.pages))
       })
@@ -181,6 +196,57 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [applyZoom, ready])
+
+  // 노트를 처음 연 순간의 페이지를 기준으로 삼는다
+  useEffect(() => {
+    if (history && summaryBaseRef.current === undefined) summaryBaseRef.current = history.present
+  }, [history])
+
+  const summaryStale = Boolean(summary) && (staleOnLoad || (pages !== null && pages !== summaryBaseRef.current))
+
+  const runSummary = useCallback(async () => {
+    const current = latestPagesRef.current
+    if (!current) return
+    const indexes = pagesToSummarize(current)
+    setShowSummary(true)
+    if (indexes.length === 0) {
+      setSummaryState('error')
+      setSummaryError('요약할 필기가 없어요. 먼저 필기를 해 주세요.')
+      return
+    }
+    setSummaryState('busy')
+    setSummaryPages(indexes.length)
+    setSummaryError('')
+    try {
+      await ensureFont(settingsRef.current.fontId) // 보정된 글자를 보정 글씨체로 그리려고
+      const images = indexes.map((i) => renderSummaryPage(current[i], settingsRef.current.fontId))
+      const res = await summarizeNote(noteId, images)
+      summaryBaseRef.current = current
+      setStaleOnLoad(false)
+      setSummary({ lines: res.summary, at: res.summarizedAt })
+      setSuggestion(res.title ?? null)
+      setSummaryState('idle')
+    } catch (e) {
+      setSummaryState('error')
+      setSummaryError(e.message || '지금은 요약을 만들 수 없어요.')
+    }
+  }, [noteId])
+
+  const openSummary = () => {
+    if (showSummary) {
+      setShowSummary(false)
+      return
+    }
+    setShowSummary(true)
+    if (!summary && summaryState !== 'busy') runSummary()
+  }
+
+  const useSuggestedTitle = () => {
+    if (!suggestion) return
+    dirtyRef.current = true
+    setTitle(suggestion)
+    setSuggestion(null)
+  }
 
   const linesByPage = useMemo(() => (pages ?? []).map((p) => groupLines(p.strokes)), [pages])
 
@@ -339,6 +405,16 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
           }}
         />
         <span className={`save-state ${saveState}`} role="status">{SAVE_LABELS[saveState]}</span>
+        <button
+          type="button"
+          className={`btn-quiet summary-btn${showSummary ? ' on' : ''}`}
+          aria-label="AI 요약"
+          aria-pressed={showSummary}
+          onClick={openSummary}
+        >
+          <SummaryIcon />
+          <span>AI 요약</span>
+        </button>
         <button type="button" className="btn-quiet icon-btn" aria-label="실행 취소" disabled={!canUndo(history)} onClick={() => changeHistory(undo)}>
           <UndoIcon />
         </button>
@@ -437,6 +513,19 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
         </div>
       </main>
 
+      {showSummary && (
+        <SummaryPanel
+          state={summaryState}
+          error={summaryError}
+          pageCount={summaryPages}
+          summary={summary}
+          suggestion={suggestion && suggestion !== title.trim() ? suggestion : null}
+          stale={summaryStale}
+          onSummarize={runSummary}
+          onUseTitle={useSuggestedTitle}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
       {showSettings && onSettingsChange && (
         <SettingsDialog settings={settings} onChange={onSettingsChange} onClose={() => setShowSettings(false)} />
       )}

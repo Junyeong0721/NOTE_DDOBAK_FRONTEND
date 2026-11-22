@@ -48,6 +48,13 @@ export const updateNote = (id, { title, content, thumbnail }) =>
 export const moveNoteToFolder = (id, folderId) =>
   request(`${BASE}/${id}/folder`, { method: 'PATCH', body: JSON.stringify({ folderId }) })
 
+/**
+ * AI 요약: 필기가 있는 페이지 그림(PNG data URL, 최대 10장)을 보내면
+ * { summary: [줄...], title: 제목 추천 | null, summarizedAt }을 돌려준다. 요약은 서버에 저장된다
+ */
+export const summarizeNote = (id, pages) =>
+  request(`${BASE}/${id}/summary`, { method: 'POST', body: JSON.stringify({ pages }) })
+
 export async function deleteNote(id) {
   await request(`${BASE}/${id}`, { method: 'DELETE' })
 }
