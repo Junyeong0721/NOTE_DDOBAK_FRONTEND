@@ -61,6 +61,12 @@ export const FontIcon = () => (
 export const SummaryIcon = () => (
   <svg {...base}><path d="M4 6h9M4 11h7M4 16h5" /><path d="M17.5 12.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" /><path d="M17 4.5l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5z" /></svg>
 )
+export const ShareIcon = () => (
+  <svg {...base}><path d="M12 15V4" /><path d="M8 8l4-4 4 4" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
+)
+export const HeartIcon = ({ filled = false }) => (
+  <svg {...base} fill={filled ? 'currentColor' : 'none'}><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>
+)
 export const CloseIcon = () => (
   <svg {...base}><path d="M6 6l12 12M18 6L6 18" /></svg>
 )

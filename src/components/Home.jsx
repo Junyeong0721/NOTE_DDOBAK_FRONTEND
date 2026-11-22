@@ -6,7 +6,7 @@ const dateFormat = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numer
 const RECENT = 4
 
 /** 로그인 후 첫 화면: 최근 노트 이어 쓰기, 새 노트, 모든 노트, 글씨 연습 */
-export default function Home({ user, notes, folders, loading, error, onOpen, onCreate, onShowAll, onPractice, onSettings, onLogout }) {
+export default function Home({ user, notes, folders, loading, error, onOpen, onCreate, onShowAll, onPractice, onCommunity, onSettings, onLogout }) {
   const folderById = new Map(folders.map((f) => [f.id, f]))
   const recent = notes.slice(0, RECENT)
 
@@ -60,10 +60,14 @@ export default function Home({ user, notes, folders, loading, error, onOpen, onC
           )}
         </section>
 
-        <section className="home-section" aria-labelledby="practice-title">
+        <section className="home-section home-cards" aria-label="더 하기">
           <button type="button" className="practice-card" onClick={onPractice}>
-            <h2 id="practice-title">글씨 연습</h2>
+            <h2>글씨 연습</h2>
             <p>고른 글씨체를 칸에 따라 쓰면 점수와 조언을 알려 드려요.</p>
+          </button>
+          <button type="button" className="practice-card" onClick={onCommunity}>
+            <h2>커뮤니티</h2>
+            <p>다른 회원이 공개한 필기 노트를 둘러보고, 마음에 들면 내 노트로 가져와요.</p>
           </button>
         </section>
       </main>
