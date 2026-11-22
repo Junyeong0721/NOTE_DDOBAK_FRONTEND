@@ -12,6 +12,8 @@ import { ALL, UNFILED, countByFolder, filterNotes } from './note/filterNotes'
 import { FONTS_CHANGED } from './note/myFonts'
 import { loadSettings, saveSettings } from './settings'
 import Practice from './components/practice/Practice'
+import Community from './components/community/Community'
+import './components/community/Community.css'
 import './App.css'
 
 function emptyMessage({ selected, query, total }) {
@@ -32,7 +34,8 @@ function App({ user, onLogout }) {
   const [dialog, setDialog] = useState(null) // { folder } | { folder: null }
   const [settings, setSettings] = useState(loadSettings) // { fontId, autoSuggest } — 이 기기에 저장
   const [showSettings, setShowSettings] = useState(false)
-  const [view, setView] = useState('home') // home | library | practice
+  const [view, setView] = useState('home') // home | library | practice | community
+  const [postId, setPostId] = useState(null) // 커뮤니티에서 보고 있는 공개 노트
 
   // 쓰던 글씨체를 [글씨체 더 보기]에서 빼면(연습 화면에서 뺐더라도) 노트 보정 글씨체도 기본으로 돌린다
   useEffect(() => {
@@ -135,6 +138,12 @@ function App({ user, onLogout }) {
           setOpen(null)
           refresh()
         }}
+        onViewPost={(id) => {
+          setOpen(null)
+          setPostId(id)
+          setView('community')
+          refresh()
+        }}
       />
     )
   }
@@ -144,6 +153,20 @@ function App({ user, onLogout }) {
 
   if (view === 'practice') {
     return <Practice onExit={() => setView('home')} />
+  }
+
+  if (view === 'community') {
+    return (
+      <Community
+        postId={postId}
+        onPostId={setPostId}
+        onExit={() => {
+          setPostId(null)
+          setView('home')
+        }}
+        onOpenNote={(id) => setOpen({ id, folderId: notes.find((n) => n.id === id)?.folderId ?? null })}
+      />
+    )
   }
 
   if (view === 'home') {
@@ -159,6 +182,7 @@ function App({ user, onLogout }) {
           onCreate={() => handleCreate(null)}
           onShowAll={() => setView('library')}
           onPractice={() => setView('practice')}
+          onCommunity={() => setView('community')}
           onSettings={() => setShowSettings(true)}
           onLogout={onLogout}
         />

@@ -18,8 +18,9 @@ import { clampZoom, zoomAround } from '../note/zoom'
 import { DEFAULT_SETTINGS } from '../settings'
 import CorrectionBar from './CorrectionBar'
 import SettingsDialog from './SettingsDialog'
-import { BackIcon, RedoIcon, SummaryIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
+import { BackIcon, RedoIcon, ShareIcon, SummaryIcon, UndoIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
 import NoteCanvas from './NoteCanvas'
+import PublishDialog from './PublishDialog'
 import SelectionBar from './SelectionBar'
 import SummaryPanel from './SummaryPanel'
 import ToolPalette from './ToolPalette'
@@ -54,7 +55,7 @@ function saveFlag(key, value) {
   }
 }
 
-export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_SETTINGS, onSettingsChange }) {
+export default function NoteEditor({ noteId, folder, onBack, onViewPost, settings = DEFAULT_SETTINGS, onSettingsChange }) {
   const [loadError, setLoadError] = useState('')
   const [title, setTitle] = useState('')
   const [meta, setMeta] = useState(null) // { version, page }
@@ -69,6 +70,7 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
   const [ocrLabels, setOcrLabels] = useState({}) // 줄 id → 인식 결과 표시
   const [selection, setSelection] = useState(null) // { pageIndex, ids }
   const [showSettings, setShowSettings] = useState(false)
+  const [showPublish, setShowPublish] = useState(false)
   const [bar, setBar] = useState(null) // 보정 막대: { mode: 'suggest', pageIndex, correction } | { mode: 'edit', pageIndex, correctionId } | { mode: 'busy' | 'message' }
   const [zoom, setZoom] = useState(1)
   const [baseWidth, setBaseWidth] = useState(MAX_PAGE_WIDTH)
@@ -415,6 +417,12 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
           <SummaryIcon />
           <span>AI 요약</span>
         </button>
+        {onViewPost && (
+          <button type="button" className="btn-quiet summary-btn publish-btn" aria-label="공개" onClick={() => setShowPublish(true)}>
+            <ShareIcon />
+            <span>공개</span>
+          </button>
+        )}
         <button type="button" className="btn-quiet icon-btn" aria-label="실행 취소" disabled={!canUndo(history)} onClick={() => changeHistory(undo)}>
           <UndoIcon />
         </button>
@@ -524,6 +532,18 @@ export default function NoteEditor({ noteId, folder, onBack, settings = DEFAULT_
           onSummarize={runSummary}
           onUseTitle={useSuggestedTitle}
           onClose={() => setShowSummary(false)}
+        />
+      )}
+      {showPublish && (
+        <PublishDialog
+          noteId={noteId}
+          noteTitle={title.trim()}
+          folderName={folder?.name ?? null}
+          hasWriting={pages.some((p) => p.strokes.length > 0)}
+          hasSummary={Boolean(summary)}
+          saving={saveState !== 'saved'}
+          onViewPost={onViewPost}
+          onClose={() => setShowPublish(false)}
         />
       )}
       {showSettings && onSettingsChange && (
